@@ -5,6 +5,16 @@ from bs4 import BeautifulSoup
 # 1. Page Configuration
 st.set_page_config(page_title="Market War-Room", layout="wide")
 
+# --- SIDEBAR FOR CREDITS ---
+with st.sidebar:
+    st.title("Settings")
+    st.markdown("---")
+    st.markdown("### 🛠️ Developer Details")
+    st.success("🚀 **Created by Hardik Jani**")
+    st.markdown("---")
+    st.write("Market War-Room v1.0")
+    st.caption("Last Update: April 6, 2026")
+
 # Corrected CSS for Dark Theme look
 st.markdown("""
     <style>
