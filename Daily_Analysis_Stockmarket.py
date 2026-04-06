@@ -183,12 +183,24 @@ def get_pcr_detailed():
         pass
 
     # Fallback: scalar PCR from nsepython
+except Exception:
+        pass
+
+    # Fallback 1: Try nse_pcr() from nsepython
     try:
         pcr_val = float(nse_pcr())
         result["combined"] = pcr_val
+        result["weekly"]  = (pcr_val, "approx")
+        result["monthly"] = (pcr_val, "approx")
+        result["_source"] = "nse_pcr_fallback"
+        return result
     except Exception:
         pass
 
+    # Fallback 2: Session retry with browser headers ...
+    # (rest of the code)
+
+    result["_source"] = "failed"
     return result
 
 def pcr_sentiment(pcr):
@@ -343,14 +355,14 @@ c_label, c_interp = pcr_sentiment(c_pcr)
 col_w, col_m, col_c = st.columns(3)
 
 with col_w:
-    st.markdown(f"##### 📅 Weekly PCR `{w_exp}`")
+    st.markdown(f"##### 📅 Weekly PCR" + (f" — `{w_exp}`" if w_exp else ""))
     if w_pcr:
         st.metric("Weekly PCR (OI)", f"{w_pcr:.2f}", w_label)
     else:
         st.warning("Weekly PCR unavailable")
 
 with col_m:
-    st.markdown(f"##### 🗓️ Monthly PCR `{m_exp}`")
+    st.markdown(f"##### 🗓️ Monthly PCR" + (f" — `{m_exp}`" if m_exp else ""))
     if m_pcr:
         st.metric("Monthly PCR (OI)", f"{m_pcr:.2f}", m_label)
     else:
