@@ -316,11 +316,10 @@ for category, stocks in HDFC_MF_PICKS.items():
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.info("""
-💡 **Why track MF purchases?**  
-When a large fund like HDFC adds a new position, it signals:
-- ✅ Fundamental strength confirmed by deep research teams
-- ✅ Multi-quarter holding intent — not short-term noise
-- ✅ Likely more buying coming → price appreciation potential
+💡 **Track your purchases?**  
+- ✅ Fundamental strength confirmed by monitaring your data
+- ✅ Hold for a longer term
+- ✅ Build a business, not a casino 
 """)
 
 st.divider()
