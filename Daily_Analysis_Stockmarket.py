@@ -9,7 +9,7 @@ from nsepython import *
 # MULTI-SOURCE DATA ENGINE (Anti-Block)
 # ==========================================
 
-AV_KEY = st.secrets.get("7VS2EN1LYXT19R24", "demo")  # Add your key in Streamlit secrets
+AV_KEY = st.secrets.get("6Z6CR3Z7C663LFV8", "demo")  # Add your key in Streamlit secrets
 
 @st.cache_data(ttl=180)
 def fetch_nse_index(symbol):
