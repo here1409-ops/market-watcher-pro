@@ -45,7 +45,7 @@ st.header("🌍 Global & Domestic Live Cues")
 tickers = {
     "NIFTY 50": "^NSEI",
     "SENSEX": "^BSESN",
-    "GIFT NIFTY": "^NSEI", # Alternative: "NIFTY=F" or "IN1!" 
+    "GIFT NIFTY": "NIFTY=F", # Alternative: "NIFTY=F" or "IN1!" 
     "DOW JONES": "^DJI",
     "NIKKEI 225": "^N225",
     "USD-INR": "INR=X",
