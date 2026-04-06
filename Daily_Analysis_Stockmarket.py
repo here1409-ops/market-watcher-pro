@@ -143,3 +143,19 @@ st.divider()
 st.header(f"🎯 Market Conviction Score: 25/100")
 st.error("### 📉 OUTLOOK: PANIC / GAP DOWN OPENING")
 st.info("Strategy: HDFC Bank and ICICI Bank are at crucial supports. Watch for recovery near 10:30 AM.")
+
+# ==========================================
+# PART 5: LEGAL DISCLAIMER & DECLARATION
+# ==========================================
+st.divider()
+st.caption("⚠️ **IMPORTANT DISCLAIMER**")
+st.warning("""
+**Educational Purpose Only:** This dashboard is created by **Hardik Jani** for personal reference and educational purposes only. 
+The data shown here is fetched from public sources and may have a delay. 
+
+1. **No Financial Advice:** Any stock, index, or trade mentioned on this page should NOT be considered as buy/sell advice. 
+2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. Any profit or loss incurred by trading/investing based on this dashboard is solely the user's responsibility. 
+3. **No Charges:** We **DO NOT charge any fees** or money for accessing this page. It is a free-to-use tool for market analysis. 
+
+**Investments in the securities market are subject to market risks. Read all the related documents carefully before investing.**
+""")
