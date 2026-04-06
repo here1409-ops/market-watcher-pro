@@ -1,8 +1,7 @@
 import streamlit as st
-import urllib3
-from bs4 import BeautifulSoup
-import time
+import yfinance as yf
 import pandas as pd
+import time
 
 # 1. Page Configuration
 st.set_page_config(page_title="Market War-Room", layout="wide")
@@ -12,11 +11,12 @@ with st.sidebar:
     st.title("Settings")
     st.markdown("---")
     st.success("🚀 **Created by Hardik Jani**")
-    if st.button('🔄 Refresh Real-Time Data'):
+    if st.button('🔄 Force Refresh'):
+        st.cache_data.clear()
         st.rerun()
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
-# Custom CSS for Dark Theme
+# Custom CSS
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
@@ -25,82 +25,81 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🏹 Market Watcher Pro: LIVE Analysis")
-st.caption("Live Google Finance Scraper - No more N/A issues!")
+st.caption("Reliable Multi-Source Data Feed (Real-Time)")
 
 # ==========================================
-# PART 1: GOOGLE FINANCE SCRAPER FUNCTION
+# PART 1: RELIABLE DATA FETCH FUNCTION
 # ==========================================
-def get_live_google(ticker, exchange="NSE"):
+def get_reliable_data(ticker):
     try:
-        url = f"https://www.google.com/finance/quote/{ticker}:{exchange}"
-        http = urllib3.PoolManager()
-        r = http.request('GET', url, headers={'User-Agent': 'Mozilla/5.0'})
-        soup = BeautifulSoup(r.data, 'lxml')
+        # Method 1: Fast Download
+        data = yf.download(ticker, period="2d", interval="1m", progress=False)
+        if not data.empty:
+            cur = data['Close'].iloc[-1]
+            prev = data['Close'].iloc[0]
+            return float(cur), float(((cur-prev)/prev)*100)
         
-        # Price fetching logic
-        price = float(soup.find("div", {"class": "YMlS7e"}).text.replace(",", "").replace("₹", "").replace("$", ""))
-        change_raw = soup.find("div", {"class": "Jw7Cdb"}).text
-        # Change percentage nikalva mate
-        change_pct = float(change_raw.replace("%", "").replace("+", "").replace("-", ""))
-        if "-" in change_raw: change_pct = -change_pct
-        
-        return price, change_pct
+        # Method 2: Ticker Info (Back-up)
+        t = yf.Ticker(ticker)
+        h = t.history(period="2d")
+        if not h.empty:
+            cur = h['Close'].iloc[-1]
+            prev = h['Close'].iloc[-2]
+            return float(cur), float(((cur-prev)/prev)*100)
     except:
         return 0.0, 0.0
+    return 0.0, 0.0
 
 # ==========================================
-# PART 2: LIVE MARKET DASHBOARD
+# PART 2: DASHBOARD
 # ==========================================
 st.header("🌍 Global & Domestic Live Cues")
 
-# Tickers format for Google Finance
-market_items = [
-    {"name": "NIFTY 50", "sym": "NIFTY_50", "exch": "INDEXNSE"},
-    {"name": "BANK NIFTY", "sym": "NIFTY_BANK", "exch": "INDEXNSE"},
-    {"name": "GOLD (MCX)", "sym": "GOLD", "exch": "MCX"},
-    {"name": "DOW JONES", "sym": ".DJI", "exch": "INDEXDJX"},
-    {"name": "RELIANCE", "sym": "RELIANCE", "exch": "NSE"},
-    {"name": "HDFC BANK", "sym": "HDFCBANK", "exch": "NSE"},
-    {"name": "USD-INR", "sym": "USD-INR", "exch": "CURRENCY"},
-    {"name": "INDIA VIX", "sym": "INDIAVIX", "exch": "INDEXNSE"}
-]
+# Tickers je 100% chale che Yahoo par
+market_items = {
+    "NIFTY 50": "^NSEI",
+    "BANK NIFTY": "^NSEBANK",
+    "GOLD (LIVE)": "GOLDM.NS",
+    "DOW JONES": "^DJI",
+    "RELIANCE": "RELIANCE.NS",
+    "HDFC BANK": "HDFCBANK.NS",
+    "USD-INR": "INR=X",
+    "INDIA VIX": "^INDIAVIX"
+}
 
 cols = st.columns(4)
-for i, item in enumerate(market_items):
-    price, change = get_live_google(item["sym"], item["exch"])
+for i, (name, sym) in enumerate(market_items.items()):
+    price, change = get_reliable_data(sym)
     if price > 0:
-        cols[i % 4].metric(item["name"], f"{price:,.2f}", f"{change:+.2f}%")
+        cols[i % 4].metric(name, f"{price:,.2f}", f"{change:+.2f}%")
     else:
-        cols[i % 4].error(f"{item['name']} Offline")
+        cols[i % 4].error(f"{name} Connection Lost")
 
 st.divider()
 
 # ==========================================
-# PART 3: STOCKS TO WATCH (Institutional)
+# PART 3: STOCKS TO WATCH
 # ==========================================
 st.header("🎯 High Conviction Stocks to Watch")
-st.caption("Common picks from HDFC & Parag Parikh (Watchlist only)")
+c1, c2 = st.columns(2)
 
-s_col1, s_col2 = st.columns(2)
-# Large Cap
-with s_col1:
+with c1:
     st.subheader("🏙️ Large Cap")
-    for s in ["ICICIBANK", "INFY"]:
-        p, c = get_live_google(s, "NSE")
-        st.write(f"**{s}**: ₹{p:,.2f} ({c:+.2f}%)")
+    for s_name, s_sym in {"ICICI BANK": "ICICIBANK.NS", "INFOSYS": "INFY.NS"}.items():
+        p, c = get_reliable_data(s_sym)
+        st.write(f"**{s_name}**: ₹{p:,.2f} ({c:+.2f}%)")
 
-# Small Cap
-with s_col2:
+with c2:
     st.subheader("🏢 Small/Mid Cap")
-    for s in ["MAHABANK", "PNBHOUSING", "KARURVYSYA"]:
-        p, c = get_live_google(s, "NSE")
-        st.write(f"**{s}**: ₹{p:,.2f} ({c:+.2f}%)")
+    for s_name, s_sym in {"MAHA BANK": "MAHABANK.NS", "PNB HOUSING": "PNBHOUSING.NS"}.items():
+        p, c = get_reliable_data(s_sym)
+        st.write(f"**{s_name}**: ₹{p:,.2f} ({c:+.2f}%)")
 
 # ==========================================
 # PART 4: LEGAL & CONVICTION
 # ==========================================
 st.divider()
 st.header(f"🎯 Market Conviction Score: 25/100")
-st.error("### 📉 OUTLOOK: WEAKNESS / CONSOLIDATION")
+st.error("### 📉 OUTLOOK: WEAKNESS / VOLATILITY")
 
-st.info("⚠️ **Disclaimer:** Created by Hardik Jani. This is NOT investment advice. No charges are taken for this tool. Trading involves risk.")
+st.info("⚠️ **Disclaimer:** Created by Hardik Jani. Personal reference only. No financial advice. 100% Free Tool.")
