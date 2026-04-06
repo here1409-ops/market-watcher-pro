@@ -345,7 +345,7 @@ st.divider()
 # ==========================================
 # SECTION C: HDFC MF TOP PICKS
 # ==========================================
-st.header("💼 HDFC Mutual Fund — Top Picks (Last Quarter)")
+st.header("💼 Top Picks ()")
 st.caption("📅 Source: HDFC AMC Portfolio Disclosure | Jan–Mar 2025 | Updated each quarter")
 
 for category, stocks in HDFC_MF_PICKS.items():
