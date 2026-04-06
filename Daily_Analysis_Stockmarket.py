@@ -111,7 +111,7 @@ with col_news:
 # ==========================================
 st.divider()
 st.header("🎯 High Conviction Stocks to Watch")
-st.caption("Based on heavy institutional buying in the last quarter")
+st.caption("Long_term buying on the basis of value and volume, its not recommendation, instead it should be kept in your watch-list")
 
 # Logic: Priority to Common, then HDFC MF Picks
 # Large Cap: HDFC Bank, ICICI Bank (Commonly held/added)
