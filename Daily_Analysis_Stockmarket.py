@@ -35,6 +35,8 @@ def fetch_nse_index(symbol):
             data = nse_quote_meta("NIFTY BANK", "indices")
         elif symbol == "INDIA VIX":
             data = nse_quote_meta("INDIA VIX", "indices")
+        elif symbol == "NIFTY 500":                          # ← ADD THIS
+            data = nse_quote_meta("NIFTY 500", "indices")
         else:
             return None, None
         return float(data['underlyingValue']), float(data['pChange'])
@@ -224,8 +226,8 @@ items = [
     ("BANK NIFTY",  "^NSEBANK",    None,     None,       "BANK NIFTY"),
     ("GOLD (MCX)",  "GOLDM.NS",    None,     "GOLDBEES", None),
     ("DOW JONES",   "^DJI",        "DIA",    None,       None),
-    ("RELIANCE",    "RELIANCE.NS", None,     "RELIANCE", None),
-    ("HDFC BANK",   "HDFCBANK.NS", None,     "HDFCBANK", None),
+    ("NIKKEI 225",    "^N225",     "EWJ",     None,      None),
+    ("NIFTY 500",   "^CRSLDX",     None,     None,       "Nifty 500"),
     ("USD-INR",     "INR=X",       "USD",    None,       None),
     ("INDIA VIX",   "^INDIAVIX",   None,     None,       "INDIA VIX"),
 ]
