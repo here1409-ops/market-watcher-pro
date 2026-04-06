@@ -15,10 +15,10 @@ with st.sidebar:
     if st.button('🔄 Force Refresh Now'):
         st.cache_data.clear()
         st.rerun()
-    st.write("Market War-Room v4.5 (Final)")
+    st.write("Market War-Room v4.6")
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
-# Custom CSS for Dark UI
+# Custom CSS
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
@@ -30,13 +30,12 @@ st.title("🏹 Market Watcher Pro: LIVE Analysis")
 st.caption("Live Global Cues & Institutional Tracking (Auto-refreshing...)")
 
 # ==========================================
-# PART 1: ULTRA-RELIABLE DATA FETCH FUNCTION
+# PART 1: DATA FETCH FUNCTION
 # ==========================================
 def get_reliable_data(ticker):
-    @st.cache_data(ttl=60) # 60 seconds caching to avoid "Connection Lost"
+    @st.cache_data(ttl=60)
     def fetch(t):
         try:
-            # First Attempt: High-speed download
             data = yf.download(t, period="2d", interval="1h", progress=False)
             if not data.empty:
                 cur = data['Close'].iloc[-1]
@@ -48,7 +47,7 @@ def get_reliable_data(ticker):
     return fetch(ticker)
 
 # ==========================================
-# PART 2: LIVE GLOBAL & DOMESTIC DATA
+# PART 2: LIVE MARKET DATA
 # ==========================================
 st.header("🌍 Global & Domestic Live Cues")
 
@@ -74,7 +73,7 @@ for i, (name, sym) in enumerate(market_items.items()):
 st.divider()
 
 # ==========================================
-# PART 3: INSTITUTIONAL & NEWS FEED
+# PART 3: INSTITUTIONAL & NEWS
 # ==========================================
 col_fo, col_news = st.columns([1, 1.2])
 
@@ -105,15 +104,37 @@ with col_news:
         st.write("News currently unavailable.")
 
 # ==========================================
-# PART 4: STOCKS TO WATCH (HDFC & Parag Parikh Context)
+# PART 4: STOCKS TO WATCH
 # ==========================================
 st.divider()
 st.header("🎯 High Conviction Stocks to Watch")
-st.caption("Based on volume and institutional turnover. (Not a Recommendation)")
 
 c1, c2 = st.columns(2)
 with c1:
-    st.subheader("🏙️ Large Cap Segment")
-    for s_name, s_sym in {"HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS"}.items():
+    st.subheader("🏙️ Large Cap")
+    l_stocks = {"HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS"}
+    for s_name, s_sym in l_stocks.items():
         val, chg = get_reliable_data(s_sym)
-        st.write(f"**{s_name}**: ₹{
+        st.write(f"**{s_name}**: ₹{val:,.2f} ({chg:+.2f}%)")
+
+with c2:
+    st.subheader("🏢 Small Cap")
+    s_stocks = {"BANK OF MAHA": "MAHABANK.NS", "PNB HOUSING": "PNBHOUSING.NS", "KARUR VYSYA": "KARURVYSYA.NS"}
+    for s_name, s_sym in s_stocks.items():
+        val, chg = get_reliable_data(s_sym)
+        st.write(f"**{s_name}**: ₹{val:,.2f} ({chg:+.2f}%)")
+
+# ==========================================
+# PART 5: CONVICTION & DISCLAIMER
+# ==========================================
+st.divider()
+st.header(f"🎯 Conviction Score: 25/100")
+st.error("### 📉 OUTLOOK: VOLATILE")
+
+st.caption("⚠️ **IMPORTANT DISCLAIMER**")
+st.warning("""
+**Educational Purpose Only:** Created by **Hardik Jani**. 
+1. **No Financial Advice:** This is NOT buy/sell advice. 
+2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. 
+3. **No Charges:** This tool is **100% FREE**.
+""")
