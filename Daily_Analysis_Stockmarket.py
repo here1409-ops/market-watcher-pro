@@ -72,7 +72,7 @@ def fetch_yfinance_fallback(ticker):
         time.sleep(0.5)
         df = yf.Ticker(ticker).history(period="5d", interval="1d")
         if not df.empty and len(df) >= 2:
-            cur = float(df['Close'].iloc[-1])
+            cur  = float(df['Close'].iloc[-1])
             prev = float(df['Close'].iloc[-2])
             return cur, ((cur - prev) / prev) * 100
     except:
@@ -98,161 +98,13 @@ def get_market_data(name, sym, av_sym=None, nse_stock=None, nse_index=None):
     return 0.0, 0.0
 
 # ==========================================
-# PART 2: PCR FETCH (Weekly + Monthly)
+# PART 2: PCR SENTIMENT HELPER
 # ==========================================
-
-@st.cache_data(ttl=300)
-def get_pcr_detailed():
-    """
-    Returns dict: {
-        'weekly':  (pcr_value, expiry_date_str),
-        'monthly': (pcr_value, expiry_date_str),
-        'combined': pcr_value,
-        '_source': source_string
-    }
-    """
-    result = {"weekly": (None, ""), "monthly": (None, ""), "combined": None}
-
-    try:
-        url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept": "application/json",
-            "Referer": "https://www.nseindia.com",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers, timeout=5)
-        r = session.get(url, headers=headers, timeout=10)
-        data = r.json()
-
-        records      = data.get("records", {})
-        expiry_dates = records.get("expiryDates", [])
-        all_data     = records.get("data", [])
-
-        if not expiry_dates or not all_data:
-            raise ValueError("Empty option chain")
-
-        from datetime import datetime
-
-        def parse_expiry(s):
-            return datetime.strptime(s, "%d-%b-%Y")
-
-        sorted_expiries = sorted(expiry_dates, key=parse_expiry)
-        weekly_expiry   = sorted_expiries[0]
-
-        today      = datetime.today()
-        same_month = [
-            e for e in sorted_expiries
-            if parse_expiry(e).month == today.month
-            and parse_expiry(e).year  == today.year
-        ]
-        monthly_expiry = same_month[-1] if same_month else sorted_expiries[1]
-
-        oi_by_expiry = {}
-        for item in all_data:
-            exp = item.get("expiryDate", "")
-            if exp not in oi_by_expiry:
-                oi_by_expiry[exp] = {"ce": 0, "pe": 0}
-            oi_by_expiry[exp]["ce"] += item.get("CE", {}).get("openInterest", 0)
-            oi_by_expiry[exp]["pe"] += item.get("PE", {}).get("openInterest", 0)
-
-        def calc_pcr(expiry):
-            d = oi_by_expiry.get(expiry, {"ce": 0, "pe": 0})
-            if d["ce"] > 0:
-                return round(d["pe"] / d["ce"], 2)
-            return None
-
-        result["weekly"]   = (calc_pcr(weekly_expiry),  weekly_expiry)
-        result["monthly"]  = (calc_pcr(monthly_expiry), monthly_expiry)
-        total_ce = sum(v["ce"] for v in oi_by_expiry.values())
-        total_pe = sum(v["pe"] for v in oi_by_expiry.values())
-        result["combined"] = round(total_pe / total_ce, 2) if total_ce > 0 else None
-        result["_source"]  = "option_chain"
-        return result
-
-    except Exception:
-        pass
-
-    # Fallback 1: Try nse_pcr() from nsepython
-    try:
-        pcr_val = float(nse_pcr())
-        result["combined"] = pcr_val
-        result["weekly"]   = (pcr_val, "approx")
-        result["monthly"]  = (pcr_val, "approx")
-        result["_source"]  = "nse_pcr_fallback"
-        return result
-    except Exception:
-        pass
-
-    # Fallback 2: Session retry with browser-mimicking headers
-    try:
-        import time as _time
-        url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-            "Accept": "*/*",
-            "Referer": "https://www.nseindia.com/option-chain",
-            "X-Requested-With": "XMLHttpRequest",
-        }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers, timeout=6)
-        _time.sleep(1.5)
-        session.get("https://www.nseindia.com/option-chain", headers=headers, timeout=6)
-        _time.sleep(1)
-        r    = session.get(url, headers=headers, timeout=12)
-        data = r.json()
-
-        records      = data.get("records", {})
-        all_data     = records.get("data", [])
-        expiry_dates = records.get("expiryDates", [])
-
-        if all_data and expiry_dates:
-            from datetime import datetime
-
-            def parse_expiry(s):
-                return datetime.strptime(s, "%d-%b-%Y")
-
-            sorted_expiries = sorted(expiry_dates, key=parse_expiry)
-            weekly_expiry   = sorted_expiries[0]
-            today      = datetime.today()
-            same_month = [
-                e for e in sorted_expiries
-                if parse_expiry(e).month == today.month
-                and parse_expiry(e).year  == today.year
-            ]
-            monthly_expiry = same_month[-1] if same_month else sorted_expiries[1]
-
-            oi_by_expiry = {}
-            for item in all_data:
-                exp = item.get("expiryDate", "")
-                if exp not in oi_by_expiry:
-                    oi_by_expiry[exp] = {"ce": 0, "pe": 0}
-                oi_by_expiry[exp]["ce"] += item.get("CE", {}).get("openInterest", 0)
-                oi_by_expiry[exp]["pe"] += item.get("PE", {}).get("openInterest", 0)
-
-            def calc_pcr(exp):
-                d = oi_by_expiry.get(exp, {"ce": 0, "pe": 0})
-                return round(d["pe"] / d["ce"], 2) if d["ce"] > 0 else None
-
-            result["weekly"]   = (calc_pcr(weekly_expiry),  weekly_expiry)
-            result["monthly"]  = (calc_pcr(monthly_expiry), monthly_expiry)
-            total_ce = sum(v["ce"] for v in oi_by_expiry.values())
-            total_pe = sum(v["pe"] for v in oi_by_expiry.values())
-            result["combined"] = round(total_pe / total_ce, 2) if total_ce > 0 else None
-            result["_source"]  = "session_retry"
-            return result
-    except Exception:
-        pass
-
-    result["_source"] = "failed"
-    return result
-
 
 def pcr_sentiment(pcr):
     """Returns (emoji_label, interpretation_text) for a PCR value."""
-    if pcr is None:
-        return "⚫ N/A", "Data unavailable"
+    if pcr is None or pcr == 0.0:
+        return "⚫ N/A", "No value entered yet."
     if pcr >= 1.3:
         return "🟢 BULLISH", "Excessive Put buying → Contrarian BUY zone. Strong support."
     elif pcr >= 0.8:
@@ -261,51 +113,7 @@ def pcr_sentiment(pcr):
         return "🔴 BEARISH", "Excessive Call writing → Bears in control. Selling pressure dominant."
 
 # ==========================================
-# PART 3: FII & DII DATA
-# ==========================================
-
-@st.cache_data(ttl=600)
-def get_fii_dii():
-    # Method 1: jugaad-data
-    try:
-        from jugaad_data.nse import NSELive
-        n    = NSELive()
-        data = n.fii_dii_data()
-        if data:
-            records = []
-            for row in data[:5]:
-                records.append({
-                    "Date":           row.get("date", "N/A"),
-                    "FII Net (₹ Cr)": row.get("fiinet", "N/A"),
-                    "DII Net (₹ Cr)": row.get("diinet", "N/A"),
-                })
-            df = pd.DataFrame(records)
-            if not df.empty:
-                return df
-    except:
-        pass
-
-    # Method 2: Google Sheets (populate manually once a day)
-    try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/export?format=csv"
-        df = pd.read_csv(sheet_url)
-        if not df.empty:
-            return df.head(5)
-    except:
-        pass
-
-    # Method 3: Static fallback — update manually every week
-    st.caption("⚠️ Live FII/DII feed blocked by NSE on cloud — showing last known data.")
-    return pd.DataFrame([
-        {"Date": "04-Apr-2026", "FII Net (₹ Cr)": "-3,973", "DII Net (₹ Cr)": "+4,243"},
-        {"Date": "03-Apr-2026", "FII Net (₹ Cr)": "-2,105", "DII Net (₹ Cr)": "+3,812"},
-        {"Date": "02-Apr-2026", "FII Net (₹ Cr)": "+1,456", "DII Net (₹ Cr)": "+2,190"},
-        {"Date": "01-Apr-2026", "FII Net (₹ Cr)": "-5,621", "DII Net (₹ Cr)": "+6,034"},
-        {"Date": "28-Mar-2026", "FII Net (₹ Cr)": "-1,893", "DII Net (₹ Cr)": "+2,541"},
-    ])
-
-# ==========================================
-# PART 4: TOP PICKS
+# PART 3: TOP PICKS
 # Source: HDFC AMC publicly disclosed portfolio
 # Update each quarter from: https://www.hdfcfund.com/
 # ==========================================
@@ -376,52 +184,90 @@ for i, (name, sym, av_sym, nse_stock, nse_index) in enumerate(items):
 st.divider()
 
 # ==========================================
-# SECTION A: PCR ANALYSIS (Weekly + Monthly)
+# SECTION A: PCR ANALYSIS (Manual Entry)
 # ==========================================
 
 st.header("📊 F&O Put-Call Ratio (PCR) — Nifty")
+st.caption("✏️ Enter today's PCR values manually from NSE / Sensibull / Opstra")
 
-pcr_data = get_pcr_detailed()
+# ── Manual input fields ───────────────────────────────────────
+inp_col1, inp_col2 = st.columns(2)
 
-source = pcr_data.get("_source", "")
-if source == "nse_pcr_fallback":
-    st.info("ℹ️ NSE option chain blocked on cloud — showing single PCR value from nsepython. Weekly & Monthly are approximate.")
-elif source == "failed":
-    st.warning("⚠️ PCR data unavailable — NSE is blocking all API calls (market may be closed, or cloud IP blocked).")
+with inp_col1:
+    weekly_expiry_label = st.text_input(
+        "📅 Weekly Expiry Date (e.g. 10-Apr-2025)",
+        placeholder="10-Apr-2025"
+    )
+    w_pcr = st.number_input(
+        "Weekly PCR Value",
+        min_value=0.0,
+        max_value=5.0,
+        value=0.0,
+        step=0.01,
+        format="%.2f",
+        help="Enter Weekly PCR from NSE option chain (Put OI / Call OI)"
+    )
 
-w_pcr, w_exp = pcr_data["weekly"]
-m_pcr, m_exp = pcr_data["monthly"]
-c_pcr        = pcr_data["combined"]
+with inp_col2:
+    monthly_expiry_label = st.text_input(
+        "🗓️ Monthly Expiry Date (e.g. 24-Apr-2025)",
+        placeholder="24-Apr-2025"
+    )
+    m_pcr = st.number_input(
+        "Monthly PCR Value",
+        min_value=0.0,
+        max_value=5.0,
+        value=0.0,
+        step=0.01,
+        format="%.2f",
+        help="Enter Monthly PCR from NSE option chain (Put OI / Call OI)"
+    )
 
+st.markdown("---")
+
+# ── Sentiment calculation ─────────────────────────────────────
 w_label, w_interp = pcr_sentiment(w_pcr)
 m_label, m_interp = pcr_sentiment(m_pcr)
+
+# Combined PCR = simple average if both entered
+if w_pcr > 0 and m_pcr > 0:
+    c_pcr = round((w_pcr + m_pcr) / 2, 2)
+elif w_pcr > 0:
+    c_pcr = w_pcr
+elif m_pcr > 0:
+    c_pcr = m_pcr
+else:
+    c_pcr = None
+
 c_label, c_interp = pcr_sentiment(c_pcr)
 
-# Metric cards
+# ── Metric cards ──────────────────────────────────────────────
 col_w, col_m, col_c = st.columns(3)
 
 with col_w:
-    st.markdown("##### 📅 Weekly PCR" + (f" — `{w_exp}`" if w_exp and w_exp != "approx" else ""))
-    if w_pcr:
+    expiry_str = f" — `{weekly_expiry_label}`" if weekly_expiry_label else ""
+    st.markdown(f"##### 📅 Weekly PCR{expiry_str}")
+    if w_pcr > 0:
         st.metric("Weekly PCR (OI)", f"{w_pcr:.2f}", w_label)
     else:
-        st.warning("Weekly PCR unavailable")
+        st.info("Enter Weekly PCR above ☝️")
 
 with col_m:
-    st.markdown("##### 🗓️ Monthly PCR" + (f" — `{m_exp}`" if m_exp and m_exp != "approx" else ""))
-    if m_pcr:
+    expiry_str = f" — `{monthly_expiry_label}`" if monthly_expiry_label else ""
+    st.markdown(f"##### 🗓️ Monthly PCR{expiry_str}")
+    if m_pcr > 0:
         st.metric("Monthly PCR (OI)", f"{m_pcr:.2f}", m_label)
     else:
-        st.warning("Monthly PCR unavailable")
+        st.info("Enter Monthly PCR above ☝️")
 
 with col_c:
-    st.markdown("##### 🔢 Combined PCR (All Expiries)")
+    st.markdown("##### 🔢 Combined PCR (Avg)")
     if c_pcr:
-        st.metric("Combined PCR (OI)", f"{c_pcr:.2f}", c_label)
+        st.metric("Combined PCR", f"{c_pcr:.2f}", c_label)
     else:
-        st.warning("Combined PCR unavailable")
+        st.info("Enter at least one PCR value above ☝️")
 
-# Interpretation row
+# ── Signal interpretation row ─────────────────────────────────
 st.markdown("---")
 interp_cols = st.columns(3)
 for col, label, interp, title in [
@@ -433,10 +279,12 @@ for col, label, interp, title in [
         col.success(f"**{title}:** {interp}")
     elif "BEARISH" in label:
         col.error(f"**{title}:** {interp}")
-    else:
+    elif "NEUTRAL" in label:
         col.warning(f"**{title}:** {interp}")
+    else:
+        col.info(f"**{title}:** {interp}")
 
-# Reference table
+# ── Reference table ───────────────────────────────────────────
 with st.expander("📖 PCR Interpretation Guide"):
     st.markdown("""
     | PCR Range | Signal | What It Means |
@@ -447,57 +295,16 @@ with st.expander("📖 PCR Interpretation Guide"):
 
     > **Weekly PCR** reacts faster to short-term sentiment shifts.  
     > **Monthly PCR** reflects bigger-picture institutional positioning.  
-    > **Combined** gives the broadest market-wide reading.
+    > **Combined** is a simple average of both — broadest reading.
+    
+    💡 **Where to get PCR?** NSE website → F&O → Option Chain → NIFTY
+    Or use [Sensibull](https://sensibull.com) / [Opstra](https://opstra.definedge.com)
     """)
 
 st.divider()
 
 # ==========================================
-# SECTION B: FII & DII ACTIVITY
-# ==========================================
-
-st.header("🏦 FII & DII Activity (Last 5 Days)")
-
-fii_dii_df = get_fii_dii()
-
-if fii_dii_df is not None and not fii_dii_df.empty:
-    st.dataframe(fii_dii_df, use_container_width=True)
-
-    # Confirmation logic
-    try:
-        latest  = fii_dii_df.iloc[0]
-        fii_val = str(latest.get("FII Net (₹ Cr)", "0")).replace(",", "")
-        dii_val = str(latest.get("DII Net (₹ Cr)", "0")).replace(",", "")
-        fii_net = float(fii_val) if fii_val not in ["N/A", ""] else 0
-        dii_net = float(dii_val) if dii_val not in ["N/A", ""] else 0
-
-        st.markdown("#### 🔍 PCR + FII/DII Confirmation Signal")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("FII Net (Latest Day)", f"₹{fii_net:,.0f} Cr",
-                  "Buying 🟢" if fii_net > 0 else "Selling 🔴")
-        c2.metric("DII Net (Latest Day)", f"₹{dii_net:,.0f} Cr",
-                  "Buying 🟢" if dii_net > 0 else "Selling 🔴")
-
-        # Combined signal — uses c_pcr (combined PCR) for confirmation
-        if c_pcr and c_pcr >= 1.0 and fii_net > 0:
-            c3.success("✅ STRONG BUY SIGNAL\nPCR Bullish + FII Buying")
-        elif c_pcr and c_pcr < 0.8 and fii_net < 0:
-            c3.error("🚨 STRONG SELL SIGNAL\nPCR Bearish + FII Selling")
-        elif fii_net > 0 and dii_net > 0:
-            c3.success("✅ BOTH BUYING\nMarket likely to hold")
-        elif fii_net < 0 and dii_net > 0:
-            c3.warning("⚖️ DII supporting\nFII selling — volatile")
-        else:
-            c3.warning("🟡 MIXED SIGNAL\nWait for clarity")
-    except:
-        st.info("Signal calculation skipped — data format mismatch.")
-else:
-    st.warning("FII/DII data unavailable — NSE may be closed.")
-
-st.divider()
-
-# ==========================================
-# SECTION C: HDFC MF TOP PICKS
+# SECTION B: HDFC MF TOP PICKS
 # ==========================================
 
 st.header("💼 Top Picks")
