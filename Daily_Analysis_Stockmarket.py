@@ -110,7 +110,7 @@ with col_news:
 # PART 3: STOCKS TO WATCH (Institutional Picks)
 # ==========================================
 st.divider()
-st.header("🎯 High Conviction Stocks to Watch")
+st.header("🎯 Stocks to Watch")
 st.caption("Long_term buying on the basis of value and volume, its not recommendation, instead it should be kept in your watch-list")
 
 # Logic: Priority to Common, then HDFC MF Picks
