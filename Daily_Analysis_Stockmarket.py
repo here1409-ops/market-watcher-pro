@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import feedparser
 import time
 import requests
 import json
@@ -375,7 +376,101 @@ for category, stocks in HDFC_MF_PICKS.items():
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
+# ==========================================
+# SECTION C: INDIAN MARKET NEWS & DATA
+# ==========================================
 
+st.header("📰 Indian Market — Latest News & Key Data")
+st.caption("🔄 Auto-fetched from Economic Times, Moneycontrol & NSE announcements")
+
+# ── News Feed Sources ─────────────────────────────────────────
+NEWS_FEEDS = {
+    "📊 Economic Times Markets": "https://economictimes.indiatimes.com/markets/rss.cms",
+    "💹 Moneycontrol Top News":  "https://www.moneycontrol.com/rss/latestnews.xml",
+    "🏦 NSE / BSE Updates":      "https://news.google.com/rss/search?q=NSE+BSE+India+stock+market&hl=en-IN&gl=IN&ceid=IN:en",
+}
+
+@st.cache_data(ttl=600)  # refresh every 10 minutes
+def fetch_news(url):
+    try:
+        feed    = feedparser.parse(url)
+        entries = []
+        for entry in feed.entries[:6]:  # top 6 from each source
+            entries.append({
+                "title":     entry.get("title", "No Title"),
+                "link":      entry.get("link",  "#"),
+                "published": entry.get("published", ""),
+                "summary":   entry.get("summary", "")[:180] + "..."
+                             if len(entry.get("summary", "")) > 180
+                             else entry.get("summary", "")
+            })
+        return entries
+    except:
+        return []
+
+# ── Display news in tabs ──────────────────────────────────────
+tab1, tab2, tab3 = st.tabs(list(NEWS_FEEDS.keys()))
+
+for tab, (source_name, feed_url) in zip([tab1, tab2, tab3], NEWS_FEEDS.items()):
+    with tab:
+        articles = fetch_news(feed_url)
+        if articles:
+            for article in articles:
+                with st.container():
+                    col_text, col_link = st.columns([5, 1])
+                    with col_text:
+                        st.markdown(f"**{article['title']}**")
+                        if article['summary']:
+                            st.caption(article['summary'])
+                        if article['published']:
+                            st.caption(f"🕐 {article['published']}")
+                    with col_link:
+                        st.markdown(
+                            f"<a href='{article['link']}' target='_blank'>"
+                            f"<button style='background:#ff4b4b;color:white;"
+                            f"border:none;padding:6px 12px;border-radius:6px;"
+                            f"cursor:pointer;font-size:13px;'>Read →</button></a>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("---")
+        else:
+            st.warning(f"Could not fetch news from {source_name}. Check internet connection.")
+
+# ── Key Market Data Points ────────────────────────────────────
+st.markdown("### 📌 Key Data to Watch Today")
+
+data_col1, data_col2, data_col3 = st.columns(3)
+
+with data_col1:
+    st.markdown("""
+    **🗓️ Important Dates**
+    - F&O Expiry: Every Thursday
+    - Monthly Expiry: Last Thursday
+    - Results Season: Apr–May / Oct–Nov
+    - RBI Policy: Every 2 months
+    """)
+
+with data_col2:
+    st.markdown("""
+    **📉 Key Levels to Watch**
+    - Nifty Support: Check Prev. Day Low
+    - Nifty Resistance: Check Prev. Day High
+    - Bank Nifty follows Nifty trend
+    - VIX > 20 = High fear zone
+    - VIX < 13 = Complacency zone
+    """)
+
+with data_col3:
+    st.markdown("""
+    **🔗 Useful Links**
+    - [NSE Option Chain](https://www.nseindia.com/option-chain)
+    - [NSE Announcements](https://www.nseindia.com/companies-listing/corporate-filings-announcements)
+    - [RBI Website](https://www.rbi.org.in)
+    - [SEBI Website](https://www.sebi.gov.in)
+    - [Sensibull PCR](https://sensibull.com)
+    """)
+
+st.divider()
 # ==========================================
 # LEGAL DISCLAIMER
 # ==========================================
