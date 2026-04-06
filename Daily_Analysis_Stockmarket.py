@@ -134,7 +134,7 @@ with col2:
         cur, prev = get_data_live(sym)
         chg = ((cur-prev)/prev)*100 if prev!=0 else 0
         st.markdown(f"**{name}**: ₹{cur:,.2f} ({chg:+.2f}%)")
-st.subheader("Only for longer term")
+print("these stocks are not recommendation, given only on the basis of volume and turnover")
 
 # ==========================================
 # PART 4: CONVICTION SCORE
