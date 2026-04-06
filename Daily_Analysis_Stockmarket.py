@@ -14,7 +14,7 @@ st.set_page_config(page_title="Market War-Room", layout="wide")
 # ==========================================
 # ADMIN PASSWORD & SIDEBAR
 # ==========================================
-ADMIN_PASSWORD = "__"  # ← change this to your own password
+ADMIN_PASSWORD = "123@123@123"  # ← change this to your own password
 
 with st.sidebar:
     st.title("⚙️ Settings")
