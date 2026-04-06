@@ -98,42 +98,109 @@ def get_market_data(name, sym, av_sym=None, nse_stock=None, nse_index=None):
     return 0.0, 0.0
 
 # ==========================================
-# PART 2: PCR FETCH
+# PART 2: PCR FETCH (Weekly + Monthly)
 # ==========================================
 
 @st.cache_data(ttl=300)
-def get_pcr():
-    try:
-        pcr = nse_pcr()          # returns PCR value directly
-        return float(pcr)
-    except:
-        pass
-    # Fallback: fetch from NSE option chain manually
+def get_pcr_detailed():
+    """
+    Returns dict: {
+        'weekly':  (pcr_value, expiry_date_str),
+        'monthly': (pcr_value, expiry_date_str),
+        'combined': pcr_value
+    }
+    Falls back to nse_pcr() scalar if option chain fails.
+    """
+    result = {"weekly": (None, ""), "monthly": (None, ""), "combined": None}
+
     try:
         url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
         headers = {
-            "User-Agent": "Mozilla/5.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Accept": "application/json",
-            "Referer": "https://www.nseindia.com"
+            "Referer": "https://www.nseindia.com",
+            "Accept-Language": "en-US,en;q=0.9",
         }
         session = requests.Session()
         session.get("https://www.nseindia.com", headers=headers, timeout=5)
         r = session.get(url, headers=headers, timeout=10)
         data = r.json()
-        total_ce = sum(
-            item.get('CE', {}).get('openInterest', 0)
-            for item in data['records']['data'] if 'CE' in item
-        )
-        total_pe = sum(
-            item.get('PE', {}).get('openInterest', 0)
-            for item in data['records']['data'] if 'PE' in item
-        )
-        if total_ce > 0:
-            return round(total_pe / total_ce, 2)
-    except:
-        pass
-    return None
 
+        records = data.get("records", {})
+        expiry_dates = records.get("expiryDates", [])
+        all_data = records.get("data", [])
+
+        if not expiry_dates or not all_data:
+            raise ValueError("Empty option chain")
+
+        # Identify weekly vs monthly expiry
+        # NSE expiry dates format: "10-Apr-2025"
+        from datetime import datetime
+
+        def parse_expiry(s):
+            return datetime.strptime(s, "%d-%b-%Y")
+
+        sorted_expiries = sorted(expiry_dates, key=parse_expiry)
+        weekly_expiry  = sorted_expiries[0]   # nearest = weekly
+
+        # Monthly expiry: find the last Thursday of the current month
+        # NSE lists them — typically the 4th in the list is monthly
+        # More reliable: find expiry in same month whose date is latest
+        today = datetime.today()
+        same_month = [
+            e for e in sorted_expiries
+            if parse_expiry(e).month == today.month
+            and parse_expiry(e).year  == today.year
+        ]
+        monthly_expiry = same_month[-1] if same_month else sorted_expiries[1]
+
+        # Aggregate OI by expiry
+        oi_by_expiry = {}
+        for item in all_data:
+            exp = item.get("expiryDate", "")
+            if exp not in oi_by_expiry:
+                oi_by_expiry[exp] = {"ce": 0, "pe": 0}
+            oi_by_expiry[exp]["ce"] += item.get("CE", {}).get("openInterest", 0)
+            oi_by_expiry[exp]["pe"] += item.get("PE", {}).get("openInterest", 0)
+
+        def calc_pcr(expiry):
+            d = oi_by_expiry.get(expiry, {"ce": 0, "pe": 0})
+            if d["ce"] > 0:
+                return round(d["pe"] / d["ce"], 2)
+            return None
+
+        result["weekly"]  = (calc_pcr(weekly_expiry),  weekly_expiry)
+        result["monthly"] = (calc_pcr(monthly_expiry), monthly_expiry)
+
+        # Combined (all expiries)
+        total_ce = sum(v["ce"] for v in oi_by_expiry.values())
+        total_pe = sum(v["pe"] for v in oi_by_expiry.values())
+        result["combined"] = round(total_pe / total_ce, 2) if total_ce > 0 else None
+
+        return result
+
+    except Exception:
+        pass
+
+    # Fallback: scalar PCR from nsepython
+    try:
+        pcr_val = float(nse_pcr())
+        result["combined"] = pcr_val
+    except Exception:
+        pass
+
+    return result
+
+def pcr_sentiment(pcr):
+    """Returns (emoji_label, interpretation_text) for a PCR value."""
+    if pcr is None:
+        return "⚫ N/A", "Data unavailable"
+    if pcr >= 1.3:
+        return "🟢 BULLISH", "Excessive Put buying → Contrarian BUY zone. Strong support."
+    elif pcr >= 0.8:
+        return "🟡 NEUTRAL", "Balanced OI. Wait for breakout. No strong directional bias."
+    else:
+        return "🔴 BEARISH", "Excessive Call writing → Bears in control. Selling pressure dominant."
 # ==========================================
 # PART 3: FII & DII DATA
 # ==========================================
@@ -259,46 +326,74 @@ for i, (name, sym, av_sym, nse_stock, nse_index) in enumerate(items):
 st.divider()
 
 # ==========================================
-# SECTION A: PCR ANALYSIS
+# SECTION A: PCR ANALYSIS (Weekly + Monthly)
 # ==========================================
 st.header("📊 F&O Put-Call Ratio (PCR) — Nifty")
 
-pcr = get_pcr()
+pcr_data   = get_pcr_detailed()
+w_pcr, w_exp  = pcr_data["weekly"]
+m_pcr, m_exp  = pcr_data["monthly"]
+c_pcr         = pcr_data["combined"]
 
-col1, col2 = st.columns([1, 2])
+w_label, w_interp = pcr_sentiment(w_pcr)
+m_label, m_interp = pcr_sentiment(m_pcr)
+c_label, c_interp = pcr_sentiment(c_pcr)
 
-with col1:
-    if pcr:
-        if pcr >= 1.3:
-            sentiment = "🟢 BULLISH"
-            color = "normal"
-            interpretation = "Excessive Put buying → Market likely to REVERSE UP. Strong support. FIIs buying calls."
-        elif pcr >= 0.8:
-            sentiment = "🟡 NEUTRAL"
-            color = "off"
-            interpretation = "Balanced OI. Wait for breakout confirmation. No strong directional bias."
-        else:
-            sentiment = "🔴 BEARISH"
-            color = "inverse"
-            interpretation = "Excessive Call writing → Selling pressure dominant. Bears in control."
-        st.metric("NIFTY PCR (OI Based)", f"{pcr:.2f}", sentiment)
+# ── Metric cards ──────────────────────────────────────────────
+col_w, col_m, col_c = st.columns(3)
+
+with col_w:
+    st.markdown(f"##### 📅 Weekly PCR `{w_exp}`")
+    if w_pcr:
+        st.metric("Weekly PCR (OI)", f"{w_pcr:.2f}", w_label)
     else:
-        st.warning("PCR data unavailable — NSE may be closed or blocking.")
+        st.warning("Weekly PCR unavailable")
 
-with col2:
-    st.markdown("#### PCR Interpretation Guide")
+with col_m:
+    st.markdown(f"##### 🗓️ Monthly PCR `{m_exp}`")
+    if m_pcr:
+        st.metric("Monthly PCR (OI)", f"{m_pcr:.2f}", m_label)
+    else:
+        st.warning("Monthly PCR unavailable")
+
+with col_c:
+    st.markdown("##### 🔢 Combined PCR (All Expiries)")
+    if c_pcr:
+        st.metric("Combined PCR (OI)", f"{c_pcr:.2f}", c_label)
+    else:
+        st.warning("Combined PCR unavailable")
+
+# ── Interpretation ────────────────────────────────────────────
+st.markdown("---")
+interp_cols = st.columns(3)
+for col, label, interp, title in [
+    (interp_cols[0], w_label, w_interp, "Weekly Signal"),
+    (interp_cols[1], m_label, m_interp, "Monthly Signal"),
+    (interp_cols[2], c_label, c_interp, "Combined Signal"),
+]:
+    with col:
+        if "BULLISH" in label:
+            col.success(f"**{title}:** {interp}")
+        elif "BEARISH" in label:
+            col.error(f"**{title}:** {interp}")
+        else:
+            col.warning(f"**{title}:** {interp}")
+
+# ── Reference table ───────────────────────────────────────────
+with st.expander("📖 PCR Interpretation Guide"):
     st.markdown("""
     | PCR Range | Signal | What It Means |
     |-----------|--------|----------------|
-    | **> 1.3** | 🟢 Bullish | Extreme fear = contrarian BUY zone |
+    | **> 1.3** | 🟢 Bullish | Extreme Put OI = contrarian BUY zone |
     | **0.8 – 1.3** | 🟡 Neutral | Wait & watch, no clear trend |
-    | **< 0.8** | 🔴 Bearish | Complacency = market may FALL |
+    | **< 0.8** | 🔴 Bearish | Excess Call OI = market may FALL |
+
+    > **Weekly PCR** reacts faster to short-term sentiment shifts.  
+    > **Monthly PCR** reflects bigger-picture institutional positioning.  
+    > **Combined** gives the broadest market-wide reading.
     """)
-    if pcr:
-        st.info(f"**Today's Reading ({pcr:.2f}):** {interpretation}")
 
 st.divider()
-
 # ==========================================
 # SECTION B: FII & DII ACTIVITY
 # ==========================================
