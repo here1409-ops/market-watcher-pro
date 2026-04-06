@@ -19,10 +19,10 @@ with st.sidebar:
 st.markdown("<style>.main { background-color: #0e1117; } div[data-testid='stMetricValue'] { font-size: 24px; color: #ffffff; }</style>", unsafe_allow_html=True)
 
 st.title("🏹 Market Watcher Pro: LIVE Analysis")
-st.caption("Google Finance Scraper - Fixed Timeout Issues!")
+st.caption("Direct Google Finance Feed - Stable Version")
 
 # ==========================================
-# PART 1: GOOGLE FINANCE SCRAPER
+# PART 1: GOOGLE FINANCE SCRAPER (No yfinance needed)
 # ==========================================
 def get_google_price(ticker, exchange):
     try:
@@ -31,7 +31,7 @@ def get_google_price(ticker, exchange):
         r = http.request('GET', url, headers={'User-Agent': 'Mozilla/5.0'})
         soup = BeautifulSoup(r.data, 'html.parser')
         
-        # Price Fetching
+        # Google Finance structure logic
         price_div = soup.find("div", {"class": "YMlS7e"})
         change_div = soup.find("div", {"class": "Jw7Cdb"})
         
@@ -44,11 +44,10 @@ def get_google_price(ticker, exchange):
     return None, None
 
 # ==========================================
-# PART 2: DASHBOARD
+# PART 2: GLOBAL & DOMESTIC CUES
 # ==========================================
 st.header("🌍 Global & Domestic Live Cues")
 
-# Tickers format for Google Finance
 items = [
     {"label": "NIFTY 50", "ticker": "NIFTY_50", "exch": "INDEXNSE"},
     {"label": "BANK NIFTY", "ticker": "NIFTY_BANK", "exch": "INDEXNSE"},
@@ -64,19 +63,28 @@ cols = st.columns(4)
 for i, item in enumerate(items):
     price, change = get_google_price(item["ticker"], item["exch"])
     if price:
-        cols[i % 4].metric(item["label"], price, change)
+        cols[i % 4].metric(item["label"], f"₹{price}" if "NSE" in item["exch"] else price, change)
     else:
         cols[i % 4].error(f"{item['label']} Offline")
 
 # ==========================================
-# PART 3: STOCKS & LEGAL
+# PART 3: STOCKS TO WATCH (Institutional Picks)
 # ==========================================
 st.divider()
 st.header("🎯 Stocks to Watch")
-st.write("**HDFC BANK | ICICI BANK | PNB HOUSING**")
+st.write("Current Focus: **HDFC BANK | ICICI BANK | PNB HOUSING | MAHABANK**")
 
+# ==========================================
+# PART 4: LEGAL & CONVICTION
+# ==========================================
 st.divider()
 st.header("🎯 Market Conviction Score: 25/100")
 st.error("### 📉 OUTLOOK: VOLATILE")
 
-st.info("⚠️ **Disclaimer:** Created by Hardik Jani. Educational purpose only. Not SEBI registered. No fees charged.")
+st.caption("⚠️ **IMPORTANT DISCLAIMER**")
+st.warning("""
+**Educational Purpose Only:** Created by **Hardik Jani**. 
+1. **No Financial Advice:** This is NOT buy/sell advice. 
+2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. 
+3. **No Charges:** This tool is **100% FREE**.
+""")
