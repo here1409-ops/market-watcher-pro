@@ -7,25 +7,21 @@ import time
 # 1. Page Configuration
 st.set_page_config(page_title="Market War-Room", layout="wide")
 
-# --- SIDEBAR FOR CREDITS ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("Settings")
     st.markdown("---")
-    st.markdown("### 🛠️ Developer Details")
     st.success("🚀 **Created by Hardik Jani**")
-    st.markdown("---")
-    if st.button('🔄 Force Refresh Now'):
+    if st.button('🔄 Force Refresh Data'):
         st.cache_data.clear()
         st.rerun()
-    st.write("Market War-Room v4.0 (Live)")
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
-# Custom CSS
+# Custom CSS for Dark UI
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
     div[data-testid="stMetricValue"] { font-size: 25px; }
-    .stock-card { background-color: #1e2130; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,10 +33,11 @@ st.caption("Live Global Cues & Institutional Tracking (Auto-refreshing...)")
 # ==========================================
 st.header("🌍 Global & Domestic Live Cues")
 
+# UPDATED TICKERS: Gold rate mate GOLDM.NS (NSE) vadhare accurate che India mate
 tickers = {
     "NIFTY 50": "^NSEI",
     "BANK NIFTY": "^NSEBANK",
-    "GOLD (LIVE)": "GC=F", 
+    "GOLD (LIVE)": "GOLDM.NS",  # Fixed for Indian Market
     "DOW JONES": "^DJI",
     "NIKKEI 225": "^N225",
     "USD-INR": "INR=X",
@@ -50,13 +47,12 @@ tickers = {
 
 def get_data_live(symbol):
     try:
-        t = yf.Ticker(symbol)
-        h = t.history(period="1d", interval="1m")
-        if not h.empty:
-            cur = h['Close'].iloc[-1]
-            h2 = t.history(period="2d")
-            prev = h2['Close'].iloc[-2] if len(h2) > 1 else cur
-            return cur, prev
+        # 1m interval latest point fetch karva mate best che
+        data = yf.download(symbol, period="1d", interval="1m", progress=False)
+        if not data.empty:
+            cur = data['Close'].iloc[-1]
+            prev = data['Open'].iloc[0] # Day open sathe compare karvu vadhare precise che
+            return float(cur), float(prev)
     except:
         return 0, 0
     return 0, 0
@@ -65,7 +61,7 @@ m_cols = st.columns(4)
 for i, (name, sym) in enumerate(tickers.items()):
     cur, prev = get_data_live(sym)
     if cur > 0:
-        change = ((cur - prev) / prev) * 100 if prev != 0 else 0
+        change = ((cur - prev) / prev) * 100
         label = f"{cur:,.2f}"
         if name == "USD-INR": label = f"₹{cur:.2f}"
         m_cols[i % 4].metric(name, label, f"{change:.2f}%")
@@ -75,7 +71,7 @@ for i, (name, sym) in enumerate(tickers.items()):
 st.divider()
 
 # ==========================================
-# PART 2: F&O & NEWS FEED
+# PART 2: INSTITUTIONAL & NEWS
 # ==========================================
 col_fo, col_news = st.columns([1, 1.2])
 
@@ -84,8 +80,7 @@ with col_fo:
     pcr_w, pcr_m = 0.85, 0.72 
     st.write(f"**Weekly PCR:** {pcr_w} | **Monthly PCR:** {pcr_m}")
     fii_net, dii_net = -9931.13, 7208.41
-    st.write(f"**FII Net:** :red[₹{fii_net} Cr]")
-    st.write(f"**DII Net:** :green[+₹{dii_net} Cr]")
+    st.write(f"**FII Net:** :red[₹{fii_net} Cr] | **DII Net:** :green[+₹{dii_net} Cr]")
     if pcr_m < pcr_w:
         st.error("⚠️ Danger: Monthly PCR is Bearish!")
 
@@ -97,44 +92,35 @@ with col_news:
         soup = BeautifulSoup(r.data, 'lxml')
         keywords = ["RBI", "IRAN", "WAR", "OIL", "MARKET", "NIFTY"]
         found = False
-        for tag in soup.find_all(['h3', 'a'])[:30]:
+        for tag in soup.find_all(['h3', 'a'])[:25]:
             msg = tag.text.strip()
             if any(word in msg.upper() for word in keywords):
                 st.warning(f"• {msg}")
                 found = True
         if not found: st.write("No major alerts right now.")
     except:
-        st.write("News currently unavailable.")
+        st.write("News feed down.")
 
 # ==========================================
-# PART 3: STOCKS TO WATCH (Institutional Picks)
+# PART 3: STOCKS TO WATCH
 # ==========================================
 st.divider()
 st.header("🎯 Stocks to Watch")
-st.caption("Long_term buying on the basis of value and volume, its not recommendation, instead it should be kept in your watch-list")
+st.caption("Based on volume and turnover. This is NOT a recommendation, only for your watchlist.")
 
-# Logic: Priority to Common, then HDFC MF Picks
-# Large Cap: HDFC Bank, ICICI Bank (Commonly held/added)
-# Small Cap: Bank of Maharashtra, PNB Housing, Karur Vysya (HDFC Small Cap active picks)
-
-col1, col2 = st.columns(2)
-
-with col1:
+c1, c2 = st.columns(2)
+# Picks based on HDFC & Parag Parikh priority
+with c1:
     st.subheader("🏙️ Large Cap Segment")
-    large_caps = {"HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS"}
-    for name, sym in large_caps.items():
-        cur, prev = get_data_live(sym)
-        chg = ((cur-prev)/prev)*100 if prev!=0 else 0
-        st.markdown(f"**{name}**: ₹{cur:,.2f} ({chg:+.2f}%)")
+    for s_name, s_sym in {"HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS"}.items():
+        val, _ = get_data_live(s_sym)
+        st.write(f"**{s_name}**: ₹{val:,.2f}")
 
-with col2:
+with c2:
     st.subheader("🏢 Small Cap Segment")
-    small_caps = {"BANK OF MAHA": "MAHABANK.NS", "PNB HOUSING": "PNBHOUSING.NS", "KARUR VYSYA": "KARURVYSYA.NS"}
-    for name, sym in small_caps.items():
-        cur, prev = get_data_live(sym)
-        chg = ((cur-prev)/prev)*100 if prev!=0 else 0
-        st.markdown(f"**{name}**: ₹{cur:,.2f} ({chg:+.2f}%)")
-print("these stocks are not recommendation, given only on the basis of volume and turnover")
+    for s_name, s_sym in {"BANK OF MAHA": "MAHABANK.NS", "PNB HOUSING": "PNBHOUSING.NS", "KARUR VYSYA": "KARURVYSYA.NS"}.items():
+        val, _ = get_data_live(s_sym)
+        st.write(f"**{s_name}**: ₹{val:,.2f}")
 
 # ==========================================
 # PART 4: CONVICTION SCORE
@@ -150,12 +136,8 @@ st.info("Strategy: HDFC Bank and ICICI Bank are at crucial supports. Watch for r
 st.divider()
 st.caption("⚠️ **IMPORTANT DISCLAIMER**")
 st.warning("""
-**Educational Purpose Only:** This dashboard is created by **Hardik Jani** for personal reference and educational purposes only. 
-The data shown here is fetched from public sources and may have a delay. 
-
-1. **No Financial Advice:** Any stock, index, or trade mentioned on this page should NOT be considered as buy/sell advice. 
-2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. Any profit or loss incurred by trading/investing based on this dashboard is solely the user's responsibility. 
-3. **No Charges:** We **DO NOT charge any fees** or money for accessing this page. It is a free-to-use tool for market analysis. 
-
-**Investments in the securities market are subject to market risks. Read all the related documents carefully before investing.**
+**Educational Purpose Only:** Created by **Hardik Jani** for personal reference. 
+1. **No Financial Advice:** This is NOT buy/sell advice. 
+2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. Trading is at your own risk. 
+3. **No Charges:** This page is **100% FREE**. We do not charge any fees.
 """)
