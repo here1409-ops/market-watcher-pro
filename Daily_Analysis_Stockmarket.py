@@ -14,7 +14,7 @@ st.set_page_config(page_title="Market War-Room", layout="wide")
 # ==========================================
 # ADMIN PASSWORD & SIDEBAR
 # ==========================================
-ADMIN_PASSWORD = "yourpassword123"  # ← change this to your own password
+ADMIN_PASSWORD = "__"  # ← change this to your own password
 
 with st.sidebar:
     st.title("⚙️ Settings")
@@ -27,8 +27,15 @@ with st.sidebar:
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
     st.markdown("---")
     st.markdown("#### 🔐 Admin PCR Update")
-    admin_pass = st.text_input("Password", type="password")
-    is_admin   = (admin_pass == ADMIN_PASSWORD)
+    admin_pass = st.text_input("Password", type="password", key="admin_password")
+    if admin_pass:
+        if admin_pass == ADMIN_PASSWORD:
+            st.success("✅ Admin access granted")
+        else:
+            st.error("❌ Wrong password")
+
+# Define is_admin AFTER the sidebar block, outside it
+is_admin = (admin_pass == ADMIN_PASSWORD) if admin_pass else False
 
 AV_KEY = st.secrets.get("6Z6CR3Z7C663LFV8", "demo")
 
@@ -367,15 +374,7 @@ for category, stocks in HDFC_MF_PICKS.items():
     df = pd.DataFrame(stocks)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
-st.info("""
-💡 **Why track MF purchases?**  
-When a large fund like HDFC adds a new position, it signals:
-- ✅ Fundamental strength confirmed by deep research teams
-- ✅ Multi-quarter holding intent — not short-term noise
-- ✅ Likely more buying coming → price appreciation potential
-""")
 
-st.divider()
 
 # ==========================================
 # LEGAL DISCLAIMER
