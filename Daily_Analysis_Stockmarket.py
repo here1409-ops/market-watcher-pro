@@ -15,21 +15,35 @@ with st.sidebar:
     if st.button('🔄 Force Refresh Now'):
         st.cache_data.clear()
         st.rerun()
+    st.write("Market War-Room v6.0 (Stable)")
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
+# Custom CSS for UI
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    div[data-testid="stMetricValue"] { font-size: 24px; color: #ffffff; }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.title("🏹 Market Watcher Pro: LIVE Analysis")
+st.caption("Stabilized Data Feed with Anti-Block Technology")
+
 # ==========================================
-# PART 1: THE FIX - STABLE DATA FETCH
+# PART 1: ANTI-BLOCK DATA FETCH FUNCTION
 # ==========================================
 def get_market_data(ticker):
-    @st.cache_data(ttl=60) # 60 સેકન્ડ સુધી ડેટા પકડી રાખશે
+    @st.cache_data(ttl=60) # 60 સેકન્ડ સુધી ડેટા કેશ કરશે જેથી બ્લોક ના થાય
     def fetch(t):
         try:
             # બ્રાઉઝર જેવી ઓળખ આપવા માટે Headers
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
             session = requests.Session()
             session.headers.update(headers)
             
-            # yfinance ને આ સેશન આપવું જરૂરી છે
+            # yfinance ને સેસન સાથે ડાઉનલોડ કરવું
             data = yf.download(t, period="2d", interval="15m", session=session, progress=False)
             
             if not data.empty:
@@ -44,12 +58,11 @@ def get_market_data(ticker):
     return fetch(ticker)
 
 # ==========================================
-# PART 2: UI DASHBOARD
+# PART 2: GLOBAL & DOMESTIC DASHBOARD
 # ==========================================
-st.title("🏹 Market Watcher Pro: LIVE Analysis")
 st.header("🌍 Global & Domestic Live Cues")
 
-# Tickers જે Yahoo પર 100% લાઈવ હોય છે
+# Tickers list
 items = {
     "NIFTY 50": "^NSEI",
     "BANK NIFTY": "^NSEBANK",
@@ -67,17 +80,40 @@ for i, (name, sym) in enumerate(items.items()):
     if price > 0:
         cols[i % 4].metric(name, f"{price:,.2f}", f"{change:+.2f}%")
     else:
-        # જો હજુ પણ બ્લોક હોય તો આ દેખાશે
         cols[i % 4].warning(f"{name} 🔄 Reconnecting...")
 
+st.divider()
+
 # ==========================================
-# PART 3: LEGAL DISCLAIMER (Required)
+# PART 3: INSTITUTIONAL DATA & WATCHLIST
+# ==========================================
+c_info, c_stocks = st.columns([1, 1.2])
+
+with c_info:
+    st.header("📊 Institutional Data")
+    st.write("**Weekly PCR:** 0.85 | **Monthly PCR:** 0.72")
+    st.write("**FII Net:** :red[₹-9931.13 Cr] | **DII Net:** :green[+₹7208.41 Cr]")
+
+with c_stocks:
+    st.header("🎯 Watchlist (Not Advice)")
+    watchlist = {"ICICI BANK": "ICICIBANK.NS", "PNB HOUSING": "PNBHOUSING.NS", "MAHABANK": "MAHABANK.NS"}
+    for s_name, s_sym in watchlist.items():
+        p, c = get_market_data(s_sym)
+        if p > 0:
+            st.write(f"**{s_name}**: ₹{p:,.2f} ({c:+.2f}%)")
+
+# ==========================================
+# PART 4: LEGAL DISCLAIMER (Strict Compliance)
 # ==========================================
 st.divider()
+st.header("🎯 Market Conviction Score: 25/100")
+st.error("### 📉 OUTLOOK: VOLATILE")
+
 st.caption("⚠️ **IMPORTANT DISCLAIMER**")
 st.warning("""
-**Educational Purpose Only:** This dashboard is created by **Hardik Jani** for reference only.
-1. **No Financial Advice:** This is NOT buy/sell advice.
-2. **Not Responsible:** I am NOT a SEBI registered advisor. I am not responsible for any losses.
-3. **No Charges:** We **DO NOT charge any fees** for this page.
+**Educational Purpose Only:** This dashboard is created by **Hardik Jani** for personal reference only.
+1. **No Financial Advice:** Any data shown here should NOT be considered as buy/sell advice.
+2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. I am not responsible for any financial losses.
+3. **No Charges:** We **DO NOT charge any fees** for accessing or using this page. It is 100% free.
+4. **Reference Only:** Everything bought or sold on the basis of this page is at the user's own risk.
 """)
