@@ -236,15 +236,6 @@ HDFC_MF_PICKS = {
 
 st.title("🏹 Market War-Room: LIVE Analysis")
 st.header("🌍 Global & Domestic Live Cues")
-with st.expander("🔧 Debug: Raw NSE Response"):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.nseindia.com"}
-        s = requests.Session()
-        s.get("https://www.nseindia.com", headers=headers, timeout=5)
-        r = s.get("https://www.nseindia.com/api/fiidiiTradeReact", headers=headers, timeout=8)
-        st.json(r.json()[:2])  # Show first 2 rows so we can see exact field names
-    except Exception as e:
-        st.error(f"NSE blocked: {e}")
 
 items = [
     ("NIFTY 50",    "^NSEI",       "NSEI",   None,       "NIFTY 50"),
