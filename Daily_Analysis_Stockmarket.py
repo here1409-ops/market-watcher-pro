@@ -1,7 +1,8 @@
 import streamlit as st
-import urllib3
-from bs4 import BeautifulSoup
+import yfinance as yf
+import pandas as pd
 import time
+import requests
 
 # 1. Page Configuration
 st.set_page_config(page_title="Market War-Room", layout="wide")
@@ -11,80 +12,72 @@ with st.sidebar:
     st.title("Settings")
     st.markdown("---")
     st.success("🚀 **Created by Hardik Jani**")
-    if st.button('🔄 Refresh Real-Time'):
+    if st.button('🔄 Force Refresh Now'):
+        st.cache_data.clear()
         st.rerun()
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
-# Custom CSS
-st.markdown("<style>.main { background-color: #0e1117; } div[data-testid='stMetricValue'] { font-size: 24px; color: #ffffff; }</style>", unsafe_allow_html=True)
+# ==========================================
+# PART 1: THE FIX - STABLE DATA FETCH
+# ==========================================
+def get_market_data(ticker):
+    @st.cache_data(ttl=60) # 60 સેકન્ડ સુધી ડેટા પકડી રાખશે
+    def fetch(t):
+        try:
+            # બ્રાઉઝર જેવી ઓળખ આપવા માટે Headers
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            session = requests.Session()
+            session.headers.update(headers)
+            
+            # yfinance ને આ સેશન આપવું જરૂરી છે
+            data = yf.download(t, period="2d", interval="15m", session=session, progress=False)
+            
+            if not data.empty:
+                cur = data['Close'].iloc[-1]
+                prev = data['Close'].iloc[-2]
+                change = ((cur - prev) / prev) * 100
+                return float(cur), float(change)
+        except:
+            return 0.0, 0.0
+        return 0.0, 0.0
+    
+    return fetch(ticker)
 
+# ==========================================
+# PART 2: UI DASHBOARD
+# ==========================================
 st.title("🏹 Market Watcher Pro: LIVE Analysis")
-st.caption("Direct Google Finance Feed - Stable Version")
-
-# ==========================================
-# PART 1: GOOGLE FINANCE SCRAPER (No yfinance needed)
-# ==========================================
-def get_google_price(ticker, exchange):
-    try:
-        url = f"https://www.google.com/finance/quote/{ticker}:{exchange}"
-        http = urllib3.PoolManager()
-        r = http.request('GET', url, headers={'User-Agent': 'Mozilla/5.0'})
-        soup = BeautifulSoup(r.data, 'html.parser')
-        
-        # Google Finance structure logic
-        price_div = soup.find("div", {"class": "YMlS7e"})
-        change_div = soup.find("div", {"class": "Jw7Cdb"})
-        
-        if price_div:
-            price = price_div.text.replace("₹", "").replace("$", "").replace(",", "")
-            change = change_div.text if change_div else "0%"
-            return price, change
-    except:
-        return None, None
-    return None, None
-
-# ==========================================
-# PART 2: GLOBAL & DOMESTIC CUES
-# ==========================================
 st.header("🌍 Global & Domestic Live Cues")
 
-items = [
-    {"label": "NIFTY 50", "ticker": "NIFTY_50", "exch": "INDEXNSE"},
-    {"label": "BANK NIFTY", "ticker": "NIFTY_BANK", "exch": "INDEXNSE"},
-    {"label": "GOLD (MCX)", "ticker": "GOLD", "exch": "MCX"},
-    {"label": "DOW JONES", "ticker": ".DJI", "exch": "INDEXDJX"},
-    {"label": "SENSEX", "ticker": "SENSEX", "exch": "INDEXBOM"},
-    {"label": "HDFC BANK", "ticker": "HDFCBANK", "exch": "NSE"},
-    {"label": "USD-INR", "ticker": "USD-INR", "exch": "CURRENCY"},
-    {"label": "INDIA VIX", "ticker": "INDIAVIX", "exch": "INDEXNSE"}
-]
+# Tickers જે Yahoo પર 100% લાઈવ હોય છે
+items = {
+    "NIFTY 50": "^NSEI",
+    "BANK NIFTY": "^NSEBANK",
+    "GOLD (MCX)": "GOLDM.NS",
+    "DOW JONES": "^DJI",
+    "RELIANCE": "RELIANCE.NS",
+    "HDFC BANK": "HDFCBANK.NS",
+    "USD-INR": "INR=X",
+    "INDIA VIX": "^INDIAVIX"
+}
 
 cols = st.columns(4)
-for i, item in enumerate(items):
-    price, change = get_google_price(item["ticker"], item["exch"])
-    if price:
-        cols[i % 4].metric(item["label"], f"₹{price}" if "NSE" in item["exch"] else price, change)
+for i, (name, sym) in enumerate(items.items()):
+    price, change = get_market_data(sym)
+    if price > 0:
+        cols[i % 4].metric(name, f"{price:,.2f}", f"{change:+.2f}%")
     else:
-        cols[i % 4].error(f"{item['label']} Offline")
+        # જો હજુ પણ બ્લોક હોય તો આ દેખાશે
+        cols[i % 4].warning(f"{name} 🔄 Reconnecting...")
 
 # ==========================================
-# PART 3: STOCKS TO WATCH (Institutional Picks)
+# PART 3: LEGAL DISCLAIMER (Required)
 # ==========================================
 st.divider()
-st.header("🎯 Stocks to Watch")
-st.write("Current Focus: **HDFC BANK | ICICI BANK | PNB HOUSING | MAHABANK**")
-
-# ==========================================
-# PART 4: LEGAL & CONVICTION
-# ==========================================
-st.divider()
-st.header("🎯 Market Conviction Score: 25/100")
-st.error("### 📉 OUTLOOK: VOLATILE")
-
 st.caption("⚠️ **IMPORTANT DISCLAIMER**")
 st.warning("""
-**Educational Purpose Only:** Created by **Hardik Jani**. 
-1. **No Financial Advice:** This is NOT buy/sell advice. 
-2. **Not Responsible for Losses:** I am NOT a SEBI registered advisor. 
-3. **No Charges:** This tool is **100% FREE**.
+**Educational Purpose Only:** This dashboard is created by **Hardik Jani** for reference only.
+1. **No Financial Advice:** This is NOT buy/sell advice.
+2. **Not Responsible:** I am NOT a SEBI registered advisor. I am not responsible for any losses.
+3. **No Charges:** We **DO NOT charge any fees** for this page.
 """)
