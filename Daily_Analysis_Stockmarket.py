@@ -3,12 +3,18 @@ import yfinance as yf
 import pandas as pd
 import time
 import requests
+import json
 from nsepython import *
 
 # ==========================================
 # PAGE CONFIG
 # ==========================================
 st.set_page_config(page_title="Market War-Room", layout="wide")
+
+# ==========================================
+# ADMIN PASSWORD & SIDEBAR
+# ==========================================
+ADMIN_PASSWORD = "yourpassword123"  # ← change this to your own password
 
 with st.sidebar:
     st.title("⚙️ Settings")
@@ -19,6 +25,10 @@ with st.sidebar:
         st.rerun()
     st.write("Market War-Room v8.0 (Ultimate)")
     st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
+    st.markdown("---")
+    st.markdown("#### 🔐 Admin PCR Update")
+    admin_pass = st.text_input("Password", type="password")
+    is_admin   = (admin_pass == ADMIN_PASSWORD)
 
 AV_KEY = st.secrets.get("6Z6CR3Z7C663LFV8", "demo")
 
@@ -56,10 +66,10 @@ def fetch_alpha_vantage(av_symbol):
     try:
         url = (f"https://www.alphavantage.co/query"
                f"?function=GLOBAL_QUOTE&symbol={av_symbol}&apikey={AV_KEY}")
-        r = requests.get(url, timeout=10)
+        r    = requests.get(url, timeout=10)
         data = r.json().get("Global Quote", {})
         price = float(data.get("05. price", 0))
-        pct = float(data.get("10. change percent", "0%").replace("%", ""))
+        pct   = float(data.get("10. change percent", "0%").replace("%", ""))
         if price > 0:
             return price, pct
     except:
@@ -98,8 +108,27 @@ def get_market_data(name, sym, av_sym=None, nse_stock=None, nse_index=None):
     return 0.0, 0.0
 
 # ==========================================
-# PART 2: PCR SENTIMENT HELPER
+# PART 2: PCR HELPERS
 # ==========================================
+
+PCR_FILE = "pcr_values.json"
+
+def load_pcr():
+    try:
+        with open(PCR_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {
+            "w_pcr": 0.0,
+            "m_pcr": 0.0,
+            "w_exp": "",
+            "m_exp": "",
+            "updated_at": "Not updated yet"
+        }
+
+def save_pcr(data):
+    with open(PCR_FILE, "w") as f:
+        json.dump(data, f)
 
 def pcr_sentiment(pcr):
     """Returns (emoji_label, interpretation_text) for a PCR value."""
@@ -184,44 +213,68 @@ for i, (name, sym, av_sym, nse_stock, nse_index) in enumerate(items):
 st.divider()
 
 # ==========================================
-# SECTION A: PCR ANALYSIS (Manual Entry)
+# SECTION A: PCR ANALYSIS
 # ==========================================
 
 st.header("📊 F&O Put-Call Ratio (PCR) — Nifty")
-st.caption("✏️ Enter today's PCR values manually from NSE / Sensibull / Opstra")
 
-# ── Manual input fields ───────────────────────────────────────
-inp_col1, inp_col2 = st.columns(2)
+pcr_store = load_pcr()
 
-with inp_col1:
-    weekly_expiry_label = st.text_input(
-        "📅 Weekly Expiry Date (e.g. 10-Apr-2025)",
-        placeholder="10-Apr-2025"
-    )
-    w_pcr = st.number_input(
-        "Weekly PCR Value",
-        min_value=0.0,
-        max_value=5.0,
-        value=0.0,
-        step=0.01,
-        format="%.2f",
-        help="Enter Weekly PCR from NSE option chain (Put OI / Call OI)"
-    )
+# ── Admin sees input fields ───────────────────────────────────
+if is_admin:
+    st.info("✅ Admin mode — your entries will be visible to all users once saved.")
+    inp_col1, inp_col2 = st.columns(2)
 
-with inp_col2:
-    monthly_expiry_label = st.text_input(
-        "🗓️ Monthly Expiry Date (e.g. 24-Apr-2025)",
-        placeholder="24-Apr-2025"
-    )
-    m_pcr = st.number_input(
-        "Monthly PCR Value",
-        min_value=0.0,
-        max_value=5.0,
-        value=0.0,
-        step=0.01,
-        format="%.2f",
-        help="Enter Monthly PCR from NSE option chain (Put OI / Call OI)"
-    )
+    with inp_col1:
+        weekly_expiry_label = st.text_input(
+            "📅 Weekly Expiry Date (e.g. 10-Apr-2025)",
+            value=pcr_store["w_exp"],
+            placeholder="10-Apr-2025"
+        )
+        w_pcr = st.number_input(
+            "Weekly PCR Value",
+            min_value=0.0,
+            max_value=5.0,
+            value=float(pcr_store["w_pcr"]),
+            step=0.01,
+            format="%.2f",
+            help="Enter Weekly PCR from NSE option chain (Put OI / Call OI)"
+        )
+
+    with inp_col2:
+        monthly_expiry_label = st.text_input(
+            "🗓️ Monthly Expiry Date (e.g. 24-Apr-2025)",
+            value=pcr_store["m_exp"],
+            placeholder="24-Apr-2025"
+        )
+        m_pcr = st.number_input(
+            "Monthly PCR Value",
+            min_value=0.0,
+            max_value=5.0,
+            value=float(pcr_store["m_pcr"]),
+            step=0.01,
+            format="%.2f",
+            help="Enter Monthly PCR from NSE option chain (Put OI / Call OI)"
+        )
+
+    if st.button("💾 Save & Publish PCR to all users"):
+        save_pcr({
+            "w_pcr": w_pcr,
+            "m_pcr": m_pcr,
+            "w_exp": weekly_expiry_label,
+            "m_exp": monthly_expiry_label,
+            "updated_at": time.strftime("%d-%b-%Y %H:%M:%S")
+        })
+        st.success("✅ PCR values saved! All users will now see the updated values.")
+        st.rerun()
+
+# ── Everyone else sees saved values only ─────────────────────
+else:
+    w_pcr                = float(pcr_store["w_pcr"])
+    m_pcr                = float(pcr_store["m_pcr"])
+    weekly_expiry_label  = pcr_store["w_exp"]
+    monthly_expiry_label = pcr_store["m_exp"]
+    st.caption(f"🕐 PCR last updated by admin: **{pcr_store['updated_at']}**")
 
 st.markdown("---")
 
@@ -229,7 +282,6 @@ st.markdown("---")
 w_label, w_interp = pcr_sentiment(w_pcr)
 m_label, m_interp = pcr_sentiment(m_pcr)
 
-# Combined PCR = simple average if both entered
 if w_pcr > 0 and m_pcr > 0:
     c_pcr = round((w_pcr + m_pcr) / 2, 2)
 elif w_pcr > 0:
@@ -250,7 +302,7 @@ with col_w:
     if w_pcr > 0:
         st.metric("Weekly PCR (OI)", f"{w_pcr:.2f}", w_label)
     else:
-        st.info("Enter Weekly PCR above ☝️")
+        st.info("PCR not updated yet")
 
 with col_m:
     expiry_str = f" — `{monthly_expiry_label}`" if monthly_expiry_label else ""
@@ -258,14 +310,14 @@ with col_m:
     if m_pcr > 0:
         st.metric("Monthly PCR (OI)", f"{m_pcr:.2f}", m_label)
     else:
-        st.info("Enter Monthly PCR above ☝️")
+        st.info("PCR not updated yet")
 
 with col_c:
     st.markdown("##### 🔢 Combined PCR (Avg)")
     if c_pcr:
         st.metric("Combined PCR", f"{c_pcr:.2f}", c_label)
     else:
-        st.info("Enter at least one PCR value above ☝️")
+        st.info("PCR not updated yet")
 
 # ── Signal interpretation row ─────────────────────────────────
 st.markdown("---")
@@ -296,8 +348,8 @@ with st.expander("📖 PCR Interpretation Guide"):
     > **Weekly PCR** reacts faster to short-term sentiment shifts.  
     > **Monthly PCR** reflects bigger-picture institutional positioning.  
     > **Combined** is a simple average of both — broadest reading.
-    
-    💡 **Where to get PCR?** NSE website → F&O → Option Chain → NIFTY
+
+    💡 **Where to get PCR?** NSE website → F&O → Option Chain → NIFTY  
     Or use [Sensibull](https://sensibull.com) / [Opstra](https://opstra.definedge.com)
     """)
 
@@ -316,10 +368,11 @@ for category, stocks in HDFC_MF_PICKS.items():
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.info("""
-💡 **Track your purchases?**  
-- ✅ Fundamental strength confirmed by monitaring your data
-- ✅ Hold for a longer term
-- ✅ Build a business, not a casino 
+💡 **Why track MF purchases?**  
+When a large fund like HDFC adds a new position, it signals:
+- ✅ Fundamental strength confirmed by deep research teams
+- ✅ Multi-quarter holding intent — not short-term noise
+- ✅ Likely more buying coming → price appreciation potential
 """)
 
 st.divider()
