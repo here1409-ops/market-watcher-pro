@@ -187,7 +187,7 @@ def get_fii_dii():
         {"Date": "27-Mar-2026", "FII Net (₹ Cr)": "-1,893", "DII Net (₹ Cr)": "+2,541"},
     ])
 # ==========================================
-# PART 4: HDFC MF TOP PICKS (Last Quarter)
+# PART 4: TOP PICKS (fundametal and technical scenerio)
 # These are sourced from HDFC AMC's publicly
 # disclosed portfolio (Jan–Mar 2025 quarter).
 # Update each quarter from: https://www.hdfcfund.com/
