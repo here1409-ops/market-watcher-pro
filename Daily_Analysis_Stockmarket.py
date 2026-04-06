@@ -44,7 +44,7 @@ st.header("🌍 Global & Domestic Live Cues")
 # Best working tickers for yfinance
 tickers = {
     "NIFTY 50": "^NSEI",
-    "SENSEX": "^BSESN",
+    "SENSEX": "BSESN",
     "GOLD (LIVE)": "GC=F", # "Gold rate" 
     "DOW JONES": "^DJI",
     "NIKKEI 225": "^N225",
