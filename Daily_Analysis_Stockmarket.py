@@ -38,7 +38,7 @@ with st.sidebar:
 # Define is_admin AFTER the sidebar block, outside it
 is_admin = (admin_pass == ADMIN_PASSWORD) if admin_pass else False
 
-AV_KEY = st.secrets.get("6Z6CR3Z7C663LFV8", "demo")
+AV_KEY = st.secrets.get("AV_KEY", "demo")
 
 # ==========================================
 # PART 1: DATA FETCH ENGINE
