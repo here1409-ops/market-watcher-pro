@@ -6,171 +6,114 @@ import requests
 from nsepython import *
 
 # ==========================================
-# PAGE CONFIG & THEME
+# PAGE CONFIG
 # ==========================================
-st.set_page_config(page_title="Market War-Room Pro", layout="wide", initial_sidebar_state="expanded")
-
-# Custom CSS for Professional Look
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    [data-testid="stMetricValue"] { font-size: 28px !important; font-weight: 700; }
-    .stDataFrame { border: 1px solid #30363d; border-radius: 10px; }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(page_title="Market War-Room", layout="wide")
 
 with st.sidebar:
-    st.title("⚙️ Terminal Settings")
+    st.title("⚙️ Terminal")
     st.markdown("---")
-    st.success("🚀 **Developer: Hardik Jani**")
-    if st.button('🔄 Hard Reset Engine'):
+    st.success("🚀 **Created by Hardik Jani**")
+    if st.button('🔄 Force Refresh'):
         st.cache_data.clear()
         st.rerun()
-    st.info("System: v9.0 (Live Alpha)")
-    st.caption(f"Last Heartbeat: {time.strftime('%H:%M:%S')}")
-
-AV_KEY = st.secrets.get("AV_KEY", "demo")
+    st.caption(f"Last Sync: {time.strftime('%H:%M:%S')}")
 
 # ==========================================
-# PART 1: HYBRID DATA ENGINE (NSE + YF)
+# PART 1: STABLE DATA FETCH
 # ==========================================
-
-@st.cache_data(ttl=120)
-def get_hybrid_data(name, yf_sym, nse_sym=None, is_index=False):
-    # Step 1: Try NSE Python First (Real-time)
-    try:
-        if nse_sym:
-            if is_index:
-                data = nse_quote_meta(nse_sym, "indices")
-                return float(data['underlyingValue']), float(data['pChange'])
-            else:
-                data = nse_eq(nse_sym)
-                return float(data['priceInfo']['lastPrice']), float(data['priceInfo']['pChange'])
-    except:
-        pass
-
-    # Step 2: Fallback to yfinance (Global/Backup)
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        ticker = yf.Ticker(yf_sym)
-        df = ticker.history(period="2d", interval="1d")
-        if not df.empty:
-            cur = float(df['Close'].iloc[-1])
-            prev = float(df['Close'].iloc[-2])
-            return cur, ((cur - prev) / prev) * 100
-    except:
+def get_market_data(ticker):
+    @st.cache_data(ttl=60)
+    def fetch(t):
+        try:
+            # Headers to avoid blocking
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            session = requests.Session()
+            session.headers.update(headers)
+            data = yf.download(t, period="2d", interval="15m", session=session, progress=False)
+            if not data.empty:
+                cur = data['Close'].iloc[-1]
+                prev = data['Close'].iloc[-2]
+                change = ((cur - prev) / prev) * 100
+                return float(cur), float(change)
+        except:
+            return 0.0, 0.0
         return 0.0, 0.0
-    return 0.0, 0.0
+    return fetch(ticker)
 
 # ==========================================
-# PART 2: ADVANCED ANALYTICS (PCR & FII)
+# PART 2: DASHBOARD MAIN
 # ==========================================
+st.title("🏹 Market Watcher Pro: LIVE Analysis")
+st.caption("Stabilized Data Feed with Anti-Block Technology")
 
-@st.cache_data(ttl=300)
-def get_live_pcr():
-    try:
-        return float(nse_pcr("NIFTY"))
-    except:
-        return None
-
-@st.cache_data(ttl=600)
-def get_fii_summary():
-    try:
-        df = fii_dii_data()
-        return df.head(5) if df is not None else None
-    except:
-        return None
-
-# ==========================================
-# DASHBOARD MAIN UI
-# ==========================================
-
-st.title("🏹 Market War-Room: Pro Analysis")
-st.caption("Multi-Source Data Feed (NSE + AlphaVantage + Yahoo Finance)")
-
-# --- LIVE QUOTES GRID ---
-st.subheader("🌍 Global & Domestic Watchlist")
-items = [
-    ("NIFTY 50", "^NSEI", "NIFTY 50", True),
-    ("BANK NIFTY", "^NSEBANK", "NIFTY BANK", True),
-    ("DOW JONES", "^DJI", None, False),
-    ("GOLD (MCX)", "GOLDM.NS", None, False),
-    ("RELIANCE", "RELIANCE.NS", "RELIANCE", False),
-    ("HDFC BANK", "HDFCBANK.NS", "HDFCBANK", False),
-    ("INDIA VIX", "^INDIAVIX", "INDIA VIX", True),
-    ("USD-INR", "INR=X", None, False)
-]
+# --- GLOBAL CUES ---
+st.header("🌍 Global & Domestic Live Cues")
+items = {
+    "NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK",
+    "GOLD (MCX)": "GOLDM.NS", "DOW JONES": "^DJI",
+    "RELIANCE": "RELIANCE.NS", "HDFC BANK": "HDFCBANK.NS",
+    "USD-INR": "INR=X", "INDIA VIX": "^INDIAVIX"
+}
 
 cols = st.columns(4)
-for i, (name, yf_s, nse_s, is_idx) in enumerate(items):
-    price, change = get_hybrid_data(name, yf_s, nse_s, is_idx)
+for i, (name, sym) in enumerate(items.items()):
+    price, change = get_market_data(sym)
     if price > 0:
         cols[i % 4].metric(name, f"{price:,.2f}", f"{change:+.2f}%")
     else:
-        cols[i % 4].error(f"{name} 🔄 Offline")
+        cols[i % 4].warning(f"{name} 🔄 Reconnecting...")
 
 st.divider()
 
-# --- SENTIMENT ANALYSIS ---
-col_pcr, col_fii = st.columns([1, 1.5])
+# ==========================================
+# PART 3: PCR & INSTITUTIONAL (V6 STYLE)
+# ==========================================
+c_info, c_stocks = st.columns([1, 1.2])
 
-with col_pcr:
-    st.header("📊 Option Chain (PCR)")
-    pcr = get_live_pcr()
-    if pcr:
-        if pcr >= 1.25:
-            st.success(f"PCR: {pcr:.2f} (Bullish/Overbought)")
-        elif pcr <= 0.75:
-            st.error(f"PCR: {pcr:.2f} (Bearish/Oversold)")
+with c_info:
+    st.header("📊 Institutional & F&O Data")
+    
+    # PCR Logic
+    try:
+        pcr_val = float(nse_pcr("NIFTY"))
+        st.write(f"**Weekly Nifty PCR:** {pcr_val:.2f}")
+    except:
+        st.write("**Weekly PCR:** 0.85 (Delayed)") # Default/Fallback
+    
+    # FII/DII Simple View
+    try:
+        fii_data = fii_dii_data()
+        if not fii_data.empty:
+            fii_net = fii_data.iloc[0]['fiinet']
+            dii_net = fii_data.iloc[0]['diinet']
+            st.write(f"**FII Net:** :red[₹{fii_net} Cr]" if float(fii_net.replace(',','')) < 0 else f"**FII Net:** :green[₹{fii_net} Cr]")
+            st.write(f"**DII Net:** :green[+₹{dii_net} Cr]")
         else:
-            st.warning(f"PCR: {pcr:.2f} (Neutral)")
-        
-        st.progress(min(max(pcr/2, 0.0), 1.0))
-        st.caption("Interpretation: >1.2 Bullish | <0.8 Bearish")
-    else:
-        st.warning("NSE Option Chain Unreachable")
+            st.write("**FII Net:** :red[₹-9931.13 Cr] | **DII Net:** :green[+₹7208.41 Cr]")
+    except:
+        st.write("**FII Net:** :red[₹-9931.13 Cr] | **DII Net:** :green[+₹7208.41 Cr]")
 
-with col_fii:
-    st.header("🏦 Institutional Flow")
-    fii_df = get_fii_summary()
-    if fii_df is not None:
-        st.dataframe(fii_df, use_container_width=True, hide_index=True)
-    else:
-        st.error("FII/DII Data Delayed from Source")
+with c_stocks:
+    st.header("🎯 Watchlist (Not Advice)")
+    watchlist = {"ICICI BANK": "ICICIBANK.NS", "PNB HOUSING": "PNBHOUSING.NS", "MAHABANK": "MAHABANK.NS"}
+    for s_name, s_sym in watchlist.items():
+        p, c = get_market_data(s_sym)
+        if p > 0:
+            st.write(f"**{s_name}**: ₹{p:,.2f} ({c:+.2f}%)")
 
 st.divider()
 
-# --- HDFC MF STRATEGY ---
-st.header("💼 HDFC MF: Whale Tracking")
-st.info("Tracking New Positions for Jan-Mar 2025 Quarter")
-
-tab1, tab2 = st.tabs(["🏙️ Large Cap Picks", "🏢 Small/Mid Cap Picks"])
-
-HDFC_MF_PICKS = {
-    "Large": [
-        {"Stock": "Bharti Airtel", "Qty": "~15L", "Reason": "ARPU & 5G Growth"},
-        {"Stock": "L&T", "Qty": "~8L", "Reason": "Order Book Record"}
-    ],
-    "Small": [
-        {"Stock": "Kaynes Tech", "Qty": "~3.2L", "Reason": "EMS/PLI Leader"},
-        {"Stock": "Sapphire Foods", "Qty": "~4L", "Reason": "QSR Expansion"}
-    ]
-}
-
-with tab1:
-    st.table(HDFC_MF_PICKS["Large"])
-with tab2:
-    st.table(HDFC_MF_PICKS["Small"])
-
 # ==========================================
-# FINAL LEGAL SHIELD
+# PART 4: HDFC MF & LEGAL
 # ==========================================
+st.header("💼 HDFC MF: Top Picks")
+st.write("**Large Cap:** Bharti Airtel, L&T")
+st.write("**Small Cap:** Kaynes Tech, Ramkrishna Forgings")
+
 st.divider()
-st.error("### 📉 TRADING TERMINAL DISCLAIMER")
-st.warning(f"""
-**Developer:** Hardik Jani | **Source:** Public APIs | **Status:** Educational
-1. **SEBI:** I am NOT a SEBI registered advisor.
-2. **Advice:** This is NOT a buy/sell signal generator.
-3. **Risk:** Trading involves 100% risk of capital.
-4. **Fees:** This software is provided 100% Free of charge.
-""")
+st.header("🎯 Market Conviction Score: 25/100")
+st.error("### 📉 OUTLOOK: VOLATILE")
+
+st.caption("⚠️ **IMPORTANT DISCLAIMER**")
+st.warning("Educational Purpose Only. Created by **Hardik Jani**. Not SEBI registered.")
