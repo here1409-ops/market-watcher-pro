@@ -203,10 +203,10 @@ items = [
     ("NIFTY 50",   "^NSEI",     "NSEI", None,       "NIFTY 50"),
     ("BANK NIFTY", "^NSEBANK",  None,   None,       "BANK NIFTY"),
     ("GOLD (Bees)", "GOLDM.NS",  None,   "GOLDBEES", None),
-    ("DOW JONES - ETF",  "^DJI",      "DIA",  None,       None),
+    ("DOW JONES - ETF",  "^DJI",  "DIA",  None,       None),
     ("NIKKEI 225",   "^N225",     "EWJ",  None,        None),  # Nikkei futures, more reliable
-    ("NIFTY 500",  "^CRSLDX",   None,   None,       "Nifty 500"),
-    ("USD-INR",    "INR=X",     "USD",  None,       None),
+    ("NIFTY 500",  "^CRSLDX",   None,    None,       "Nifty 500"),
+    ("USD-INR", "INR=X",         None,   None,          None),
     ("INDIA VIX",  "^INDIAVIX", None,   None,       "INDIA VIX"),
 ]
 
