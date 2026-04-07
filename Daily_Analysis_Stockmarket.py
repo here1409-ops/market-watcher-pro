@@ -222,6 +222,10 @@ for i, (name, sym, av_sym, nse_stock, nse_index) in enumerate(items):
 
 st.divider()
 
+# Store Gold & VIX for Market Compass
+gold_price, gold_change = get_market_data("GOLD", "GOLDM.NS", None, "GOLDBEES", None)
+vix_price, _            = get_market_data("INDIA VIX", "^INDIAVIX", None, None, "INDIA VIX")
+
 # ==========================================
 # SECTION A: PCR ANALYSIS
 # ==========================================
@@ -471,7 +475,122 @@ for tab, (source_name, feed_url) in zip(tabs, NEWS_FEEDS.items()):
                     st.markdown("---")
         else:
             st.warning(f"Could not fetch news from {source_name}. Check internet connection.")
-            
+
+# ==========================================
+# SECTION D: MARKET DIRECTION COMPASS
+# ==========================================
+
+st.header("🧭 Market Direction Compass")
+st.caption("Based on overall trend")
+
+# ── Scoring Logic ─────────────────────────────────────────────
+
+# 1. VIX Score
+if vix_price and vix_price > 0:
+    if vix_price > 20:
+        vix_score = -1
+        vix_signal = f"🔴 VIX at {vix_price:.2f} — Panic zone (>20). Bearish."
+    elif vix_price < 13:
+        vix_score = +1
+        vix_signal = f"🟢 VIX at {vix_price:.2f} — Calm market (<13). Bullish."
+    else:
+        vix_score = 0
+        vix_signal = f"🟡 VIX at {vix_price:.2f} — Neutral zone (13–20)."
+else:
+    vix_score = 0
+    vix_signal = "⚫ VIX data unavailable."
+
+# 2. Gold Score (inverse relation with equity)
+if gold_change and gold_price and gold_price > 0:
+    if gold_change > 0.5:
+        gold_score = -1
+        gold_signal = f"🔴 Gold rising ({gold_change:+.2f}%) — Equity may face headwinds (inverse relation)."
+    elif gold_change < -0.5:
+        gold_score = +1
+        gold_signal = f"🟢 Gold falling ({gold_change:+.2f}%) — Risk-on mood. Positive for equity."
+    else:
+        gold_score = 0
+        gold_signal = f"🟡 Gold flat ({gold_change:+.2f}%) — No strong signal from Gold."
+else:
+    gold_score = 0
+    gold_signal = "⚫ Gold data unavailable."
+
+# 3. PCR Score (uses c_pcr already computed above)
+if c_pcr and c_pcr > 0:
+    if c_pcr >= 1.3:
+        pcr_score = +1
+        pcr_signal = f"🟢 PCR at {c_pcr:.2f} — Bullish (excess put buying = contrarian buy)."
+    elif c_pcr >= 0.8:
+        pcr_score = 0
+        pcr_signal = f"🟡 PCR at {c_pcr:.2f} — Neutral. No strong directional bias."
+    else:
+        pcr_score = -1
+        pcr_signal = f"🔴 PCR at {c_pcr:.2f} — Bearish (excess call writing = selling pressure)."
+else:
+    pcr_score = 0
+    pcr_signal = "⚫ PCR not updated yet by admin."
+
+# ── Total Score ───────────────────────────────────────────────
+total_score = vix_score + gold_score + pcr_score
+
+if total_score >= 2:
+    direction_label = "🟢 BULLISH"
+    direction_color = "success"
+    direction_detail = "Multiple indicators align positively. Market likely to move UP."
+elif total_score == 1:
+    direction_label = "🟢 MILDLY BULLISH"
+    direction_color = "success"
+    direction_detail = "Slight positive tilt. Cautious optimism. Watch for confirmation."
+elif total_score == 0:
+    direction_label = "🟡 NEUTRAL / MIXED"
+    direction_color = "warning"
+    direction_detail = "Indicators are mixed. No clear direction — wait for a breakout."
+elif total_score == -1:
+    direction_label = "🔴 MILDLY BEARISH"
+    direction_color = "error"
+    direction_detail = "Slight negative tilt. Stay cautious. Avoid aggressive longs."
+else:
+    direction_label = "🔴 BEARISH"
+    direction_color = "error"
+    direction_detail = "Multiple indicators point DOWN. Risk-off environment."
+
+# ── Display ───────────────────────────────────────────────────
+st.markdown("#### 📡 Individual Signal Breakdown")
+col_v, col_g, col_p = st.columns(3)
+col_v.info(f"**VIX**\n\n{vix_signal}")
+col_g.info(f"**Gold**\n\n{gold_signal}")
+col_p.info(f"**PCR**\n\n{pcr_signal}")
+
+st.markdown("---")
+st.markdown("#### 🏁 Overall Market Direction")
+
+if direction_color == "success":
+    st.success(f"**{direction_label}** — {direction_detail}")
+elif direction_color == "warning":
+    st.warning(f"**{direction_label}** — {direction_detail}")
+else:
+    st.error(f"**{direction_label}** — {direction_detail}")
+
+st.markdown(f"*Score: {total_score} out of 3 indicators*")
+
+with st.expander("ℹ️ How is this score calculated?"):
+    st.markdown("""
+    | Indicator | Bullish (+1) | Neutral (0) | Bearish (-1) |
+    |-----------|-------------|-------------|--------------|
+    | **VIX** | < 13 (calm) | 13–20 | > 20 (panic) |
+    | **Gold** | Falling > 0.5% | Flat ±0.5% | Rising > 0.5% |
+    | **PCR** | > 1.3 | 0.8 – 1.3 | < 0.8 |
+
+    > Scores are summed: **+2 or +3** = Bullish · **0** = Neutral · **-2 or -3** = Bearish
+
+    ⚠️ *This is a directional hint only, NOT a buy/sell recommendation.*  
+    *Always do your own analysis before trading.*
+    """)
+
+st.divider()
+
+
+
 # ==========================================
 # LEGAL DISCLAIMER
 # ==========================================
