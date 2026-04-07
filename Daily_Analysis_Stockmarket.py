@@ -385,7 +385,7 @@ st.caption("🔄 Auto-fetched from Economic Times, Moneycontrol & NSE announceme
 
 # ── News Feed Sources ─────────────────────────────────────────
 NEWS_FEEDS = {
-    "🌐 Google News": "https://news.google.com/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGx6TVdZU0JXVnVMVWRDR2dKSlRpZ0FQAQ?hl=en-IN&gl=IN&ceid=IN%3Aen",
+   
     "📰 Hindu BusinessLine": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
 }
 
