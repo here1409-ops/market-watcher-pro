@@ -381,7 +381,7 @@ for category, stocks in HDFC_MF_PICKS.items():
 # ==========================================
 
 st.header("📰 Indian Market — Latest News & Key Data")
-st.caption("🔄 Auto-fetched from Economic Times, Moneycontrol & NSE announcements")
+st.caption("News")
 
 # ── News Feed Sources ─────────────────────────────────────────
 NEWS_FEEDS = {
