@@ -6,6 +6,8 @@ import time
 import requests
 import json
 from nsepython import *
+from email.utils import parsedate_to_datetime
+import datetime
 
 # ==========================================
 # PAGE CONFIG
@@ -375,37 +377,70 @@ for category, stocks in HDFC_MF_PICKS.items():
     df = pd.DataFrame(stocks)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
-
 # ==========================================
 # SECTION C: INDIAN MARKET NEWS & DATA
 # ==========================================
 
-st.header("📰 Indian Market — Latest News & Key Data")
-st.caption("News")
+import datetime
+from email.utils import parsedate_to_datetime
 
-# ── News Feed Sources ─────────────────────────────────────────
+st.header("📰 Indian Market — Latest News & Key Data")
+st.caption("Auto-sorted by latest date • Refreshes every 10 minutes")
+
 NEWS_FEEDS = {
-   
     "📰 Hindu BusinessLine": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
 }
 
-@st.cache_data(ttl=600)  # refresh every 10 minutes
+@st.cache_data(ttl=600)
 def fetch_news(url):
     try:
-        feed    = feedparser.parse(url)
+        feed = feedparser.parse(url)
         entries = []
-        for entry in feed.entries[:6]:  # top 6 from each source
+        for entry in feed.entries[:10]:
+            raw_date = entry.get("published", "") or entry.get("updated", "")
+            parsed_dt = None
+            if raw_date:
+                try:
+                    parsed_dt = parsedate_to_datetime(raw_date)
+                    # Make timezone-naive for safe comparison
+                    if parsed_dt.tzinfo is not None:
+                        parsed_dt = parsed_dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                except Exception:
+                    parsed_dt = None
+
+            summary = entry.get("summary", "")
             entries.append({
                 "title":     entry.get("title", "No Title"),
-                "link":      entry.get("link",  "#"),
-                "published": entry.get("published", ""),
-                "summary":   entry.get("summary", "")[:180] + "..."
-                             if len(entry.get("summary", "")) > 180
-                             else entry.get("summary", "")
+                "link":      entry.get("link", "#"),
+                "published": raw_date,
+                "parsed_dt": parsed_dt,
+                "summary":   (summary[:180] + "...") if len(summary) > 180 else summary
             })
+
+        # Sort newest first
+        entries.sort(key=lambda x: x["parsed_dt"] or datetime.datetime.min, reverse=True)
         return entries
-    except:
+    except Exception as e:
         return []
+
+def format_article_date(parsed_dt):
+    """Returns a colored badge string based on how fresh the article is."""
+    if parsed_dt is None:
+        return "🕐 Date unknown"
+    now = datetime.datetime.utcnow()
+    diff = now - parsed_dt
+    hours = diff.total_seconds() / 3600
+
+    if diff.days == 0:
+        if hours < 1:
+            mins = int(diff.total_seconds() / 60)
+            return f"🟢 {mins}m ago"
+        else:
+            return f"🟢 {int(hours)}h ago — Today"
+    elif diff.days == 1:
+        return f"🟡 Yesterday · {parsed_dt.strftime('%d %b, %I:%M %p')}"
+    else:
+        return f"🔴 {parsed_dt.strftime('%d %b %Y')}"
 
 # ── Display news in tabs ──────────────────────────────────────
 tabs = st.tabs(list(NEWS_FEEDS.keys()))
@@ -414,15 +449,17 @@ for tab, (source_name, feed_url) in zip(tabs, NEWS_FEEDS.items()):
     with tab:
         articles = fetch_news(feed_url)
         if articles:
+            # Show a "Latest refresh" indicator
+            st.caption(f"Showing {len(articles)} articles • sorted newest first")
             for article in articles:
+                date_badge = format_article_date(article["parsed_dt"])
                 with st.container():
                     col_text, col_link = st.columns([5, 1])
                     with col_text:
                         st.markdown(f"**{article['title']}**")
-                        if article['summary']:
-                            st.caption(article['summary'])
-                        if article['published']:
-                            st.caption(f"🕐 {article['published']}")
+                        if article["summary"]:
+                            st.caption(article["summary"])
+                        st.caption(date_badge)
                     with col_link:
                         st.markdown(
                             f"<a href='{article['link']}' target='_blank'>"
@@ -434,42 +471,7 @@ for tab, (source_name, feed_url) in zip(tabs, NEWS_FEEDS.items()):
                     st.markdown("---")
         else:
             st.warning(f"Could not fetch news from {source_name}. Check internet connection.")
-
-# ── Key Market Data Points ────────────────────────────────────
-st.markdown("### 📌 Key Data to Watch Today")
-
-data_col1, data_col2, data_col3 = st.columns(3)
-
-with data_col1:
-    st.markdown("""
-    **🗓️ Important Dates**
-    - F&O Expiry: Every Thursday
-    - Monthly Expiry: Last Thursday
-    - Results Season: Apr–May / Oct–Nov
-    - RBI Policy: Every 2 months
-    """)
-
-with data_col2:
-    st.markdown("""
-    **📉 Key Levels to Watch**
-    - Nifty Support: Check Prev. Day Low
-    - Nifty Resistance: Check Prev. Day High
-    - Bank Nifty follows Nifty trend
-    - VIX > 20 = High fear zone
-    - VIX < 13 = Complacency zone
-    """)
-
-with data_col3:
-    st.markdown("""
-    **🔗 Useful Links**
-    - [NSE Option Chain](https://www.nseindia.com/option-chain)
-    - [NSE Announcements](https://www.nseindia.com/companies-listing/corporate-filings-announcements)
-    - [RBI Website](https://www.rbi.org.in)
-    - [SEBI Website](https://www.sebi.gov.in)
-    - [Sensibull PCR](https://sensibull.com)
-    """)
-
-st.divider()
+            
 # ==========================================
 # LEGAL DISCLAIMER
 # ==========================================
