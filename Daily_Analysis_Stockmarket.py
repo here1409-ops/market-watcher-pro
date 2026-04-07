@@ -160,13 +160,13 @@ HDFC_MF_PICKS = {
         {
             "Stock": "Bharti Airtel",
             "Sector": "Telecom",
-            "Why Bought": "5G rollout play, consistent ARPU growth, dominant market share",
+            "Reason to buy": "5G rollout play, consistent ARPU growth, dominant market share",
             "Approx Qty Added": "~15 lakh shares"
         },
         {
             "Stock": "Larsen & Toubro",
             "Sector": "Capital Goods / Infra",
-            "Why Bought": "Order book at record ₹5.5L Cr, govt capex supercycle beneficiary",
+            "Reason to buy": "Order book at record ₹5.5L Cr, govt capex supercycle beneficiary",
             "Approx Qty Added": "~8 lakh shares"
         },
     ],
