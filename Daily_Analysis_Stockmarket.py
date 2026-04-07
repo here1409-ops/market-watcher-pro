@@ -385,9 +385,9 @@ st.caption("🔄 Auto-fetched from Economic Times, Moneycontrol & NSE announceme
 
 # ── News Feed Sources ─────────────────────────────────────────
 NEWS_FEEDS = {
-    "📊 Economic Times Markets": "https://economictimes.indiatimes.com/markets/rss.cms",
-    "💹 Moneycontrol Top News":  "https://www.moneycontrol.com/rss/latestnews.xml",
-    "🏦 NSE / BSE Updates":      "https://news.google.com/rss/search?q=NSE+BSE+India+stock+market&hl=en-IN&gl=IN&ceid=IN:en",
+    "🌐 Reuters India": "https://feeds.reuters.com/reuters/INbusinessNews",
+    "📊 Business Standard": "https://www.business-standard.com/rss/markets-106.rss",
+    "📰 Hindu BusinessLine": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
 }
 
 @st.cache_data(ttl=600)  # refresh every 10 minutes
