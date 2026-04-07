@@ -408,9 +408,9 @@ def fetch_news(url):
         return []
 
 # ── Display news in tabs ──────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(list(NEWS_FEEDS.keys()))
+tabs = st.tabs(list(NEWS_FEEDS.keys()))
 
-for tab, (source_name, feed_url) in zip([tab1, tab2, tab3], NEWS_FEEDS.items()):
+for tab, (source_name, feed_url) in zip(tabs, NEWS_FEEDS.items()):
     with tab:
         articles = fetch_news(feed_url)
         if articles:
