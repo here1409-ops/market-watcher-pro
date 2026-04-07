@@ -474,7 +474,7 @@ st.divider()
 # LEGAL DISCLAIMER
 # ==========================================
 
-st.error("### 📉 MARKET OUTLOOK: VOLATILE — TRADE WITH CAUTION")
+
 st.caption("⚠️ STRICT LEGAL DISCLAIMER — PLEASE READ")
 st.warning("""
 **Educational Purpose Only** | Created by **Hardik Jani**
