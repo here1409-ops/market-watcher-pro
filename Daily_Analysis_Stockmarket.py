@@ -484,7 +484,6 @@ st.warning("""
 - ❌ **No Buy/Sell Advice:** This tool is strictly for tracking and education — NOT financial advice.
 - ❌ **No Charges:** This tool is 100% free. We do NOT charge any fees whatsoever.
 - ⚠️ **Risk Warning:** Equity and F&O trading involves substantial risk of loss. Past performance is not indicative of future results.
-- 📋 **MF Data Note:** HDFC MF picks are based on publicly disclosed quarterly portfolio data and may not reflect current holdings.
 - 🔁 **Data Accuracy:** Live data depends on third-party APIs (NSE, Alpha Vantage). Occasional delays or unavailability may occur.
 - 👤 **Your Responsibility:** All trading/investment decisions are solely your own. The creator is NOT responsible for any financial losses.
 
