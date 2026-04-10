@@ -45,7 +45,18 @@ AV_KEY = st.secrets.get("AV_KEY", "demo")
 # ==========================================
 # PART 1: DATA FETCH ENGINE
 # ==========================================
-
+@st.cache_data(ttl=7200)  # Refreshes every 2 hours
+def fetch_usdinr():
+    try:
+        df = yf.Ticker("INR=X").history(period="5d", interval="1d")
+        if not df.empty and len(df) >= 2:
+            cur  = float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2])
+            chg  = ((cur - prev) / prev) * 100
+            return cur, chg
+    except:
+        pass
+    return None, None
 @st.cache_data(ttl=180)
 def fetch_nse_index(symbol):
     try:
@@ -225,6 +236,9 @@ st.divider()
 # Store Gold & VIX for Market Compass
 gold_price, gold_change = get_market_data("GOLD", "GOLDM.NS", None, "GOLDBEES", None)
 vix_price, _            = get_market_data("INDIA VIX", "^INDIAVIX", None, None, "INDIA VIX")
+
+# ← ADD THIS LINE
+usdinr_price, usdinr_change = fetch_usdinr()
 
 # ==========================================
 # SECTION A: PCR ANALYSIS
@@ -529,37 +543,52 @@ if c_pcr and c_pcr > 0:
 else:
     pcr_score = 0
     pcr_signal = "⚫ PCR not updated yet by admin."
+# 4. USD-INR Score (inverse relation with Indian equity)
+if usdinr_price and usdinr_price > 0:
+    if usdinr_change > 0.3:
+        usdinr_score  = -1
+        usdinr_signal = f"🔴 USD-INR rising ({usdinr_change:+.2f}%) — Rupee weakening. FII outflows likely. Bearish for equity."
+    elif usdinr_change < -0.3:
+        usdinr_score  = +1
+        usdinr_signal = f"🟢 USD-INR falling ({usdinr_change:+.2f}%) — Rupee strengthening. FII inflows likely. Bullish for equity."
+    else:
+        usdinr_score  = 0
+        usdinr_signal = f"🟡 USD-INR flat ({usdinr_change:+.2f}%) — Rupee stable. No strong signal."
+else:
+    usdinr_score  = 0
+    usdinr_signal = "⚫ USD-INR data unavailable."
 
 # ── Total Score ───────────────────────────────────────────────
-total_score = vix_score + gold_score + pcr_score
+total_score = vix_score + gold_score + pcr_score + usdinr_score
 
-if total_score >= 2:
-    direction_label = "🟢 BULLISH"
-    direction_color = "success"
+if total_score >= 3:
+    direction_label  = "🟢 BULLISH"
+    direction_color  = "success"
     direction_detail = "Multiple indicators align positively. Market likely to move UP."
-elif total_score == 1:
-    direction_label = "🟢 MILDLY BULLISH"
-    direction_color = "success"
+elif total_score in [1, 2]:
+    direction_label  = "🟢 MILDLY BULLISH"
+    direction_color  = "success"
     direction_detail = "Slight positive tilt. Cautious optimism. Watch for confirmation."
 elif total_score == 0:
-    direction_label = "🟡 NEUTRAL / MIXED"
-    direction_color = "warning"
+    direction_label  = "🟡 NEUTRAL / MIXED"
+    direction_color  = "warning"
     direction_detail = "Indicators are mixed. No clear direction — wait for a breakout."
-elif total_score == -1:
-    direction_label = "🔴 MILDLY BEARISH"
-    direction_color = "error"
+elif total_score in [-1, -2]:
+    direction_label  = "🔴 MILDLY BEARISH"
+    direction_color  = "error"
     direction_detail = "Slight negative tilt. Stay cautious. Avoid aggressive longs."
 else:
-    direction_label = "🔴 BEARISH"
-    direction_color = "error"
+    direction_label  = "🔴 BEARISH"
+    direction_color  = "error"
     direction_detail = "Multiple indicators point DOWN. Risk-off environment."
 
 # ── Display ───────────────────────────────────────────────────
 st.markdown("#### 📡 Individual Signal Breakdown")
-col_v, col_g, col_p = st.columns(3)
+col_v, col_g, col_p = st.columns(4)
 col_v.info(f"**VIX**\n\n{vix_signal}")
 col_g.info(f"**Gold**\n\n{gold_signal}")
 col_p.info(f"**PCR**\n\n{pcr_signal}")
+col_u.info(f"**USD-INR**\n\n{usdinr_signal}")
 
 st.markdown("---")
 st.markdown("#### 🏁 Overall Market Direction")
@@ -571,8 +600,10 @@ elif direction_color == "warning":
 else:
     st.error(f"**{direction_label}** — {direction_detail}")
 
-st.markdown(f"*Score: {total_score} out of 3 indicators*")
+# Update caption
+st.markdown(f"*Score: {total_score} out of 4 indicators*")
 
+# Update expander table
 with st.expander("ℹ️ How is this score calculated?"):
     st.markdown("""
     | Indicator | Bullish (+1) | Neutral (0) | Bearish (-1) |
@@ -580,13 +611,13 @@ with st.expander("ℹ️ How is this score calculated?"):
     | **VIX** | < 13 (calm) | 13–20 | > 20 (panic) |
     | **Gold** | Falling > 0.5% | Flat ±0.5% | Rising > 0.5% |
     | **PCR** | > 1.3 | 0.8 – 1.3 | < 0.8 |
+    | **USD-INR** | Falling > 0.3% | Flat ±0.3% | Rising > 0.3% |
 
-    > Scores are summed: **+2 or +3** = Bullish · **0** = Neutral · **-2 or -3** = Bearish
+    > Scores are summed: **+3 or +4** = Bullish · **0** = Neutral · **-3 or -4** = Bearish
 
     ⚠️ *This is a directional hint only, NOT a buy/sell recommendation.*  
     *Always do your own analysis before trading.*
     """)
-
 st.divider()
 
 
