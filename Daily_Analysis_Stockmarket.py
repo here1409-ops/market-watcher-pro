@@ -584,7 +584,7 @@ else:
 
 # ── Display ───────────────────────────────────────────────────
 st.markdown("#### 📡 Individual Signal Breakdown")
-col_v, col_g, col_p = st.columns(4)
+col_v, col_g, col_p, col_u = st.columns(4)
 col_v.info(f"**VIX**\n\n{vix_signal}")
 col_g.info(f"**Gold**\n\n{gold_signal}")
 col_p.info(f"**PCR**\n\n{pcr_signal}")
