@@ -583,13 +583,12 @@ else:
     direction_detail = "Multiple indicators point DOWN. Risk-off environment."
 
 # ── Display ───────────────────────────────────────────────────
-st.markdown("#### 📡 Individual Signal Breakdown")
-col_v, col_g, col_p, col_u = st.columns(4)
-col_v.info(f"**VIX**\n\n{vix_signal}")
-col_g.info(f"**Gold**\n\n{gold_signal}")
-col_p.info(f"**PCR**\n\n{pcr_signal}")
-col_u.info(f"**USD-INR**\n\n{usdinr_signal}")
-
+with st.expander("📡 How was this score calculated? (Signal Breakdown)"):
+    col_v, col_g, col_p, col_u = st.columns(4)
+    col_v.info(f"**VIX**\n\n{vix_signal}")
+    col_g.info(f"**Gold**\n\n{gold_signal}")
+    col_p.info(f"**PCR**\n\n{pcr_signal}")
+    col_u.info(f"**USD-INR**\n\n{usdinr_signal}")
 st.markdown("---")
 st.markdown("#### 🏁 Overall Market Direction")
 
