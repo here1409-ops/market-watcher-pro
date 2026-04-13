@@ -602,11 +602,6 @@ else:
 # Update caption
 st.markdown(f"*Score: {total_score} out of 4 indicators*")
 
-
-
-    ⚠️ *This is a directional hint only, NOT a buy/sell recommendation.*  
-    *Always do your own analysis before trading.*
-    """)
 st.divider()
 
 
