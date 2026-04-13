@@ -603,17 +603,7 @@ else:
 # Update caption
 st.markdown(f"*Score: {total_score} out of 4 indicators*")
 
-# Update expander table
-with st.expander("ℹ️ How is this score calculated?"):
-    st.markdown("""
-    | Indicator | Bullish (+1) | Neutral (0) | Bearish (-1) |
-    |-----------|-------------|-------------|--------------|
-    | **VIX** | < 13 (calm) | 13–20 | > 20 (panic) |
-    | **Gold** | Falling > 0.5% | Flat ±0.5% | Rising > 0.5% |
-    | **PCR** | > 1.3 | 0.8 – 1.3 | < 0.8 |
-    | **USD-INR** | Falling > 0.3% | Flat ±0.3% | Rising > 0.3% |
 
-    > Scores are summed: **+3 or +4** = Bullish · **0** = Neutral · **-3 or -4** = Bearish
 
     ⚠️ *This is a directional hint only, NOT a buy/sell recommendation.*  
     *Always do your own analysis before trading.*
